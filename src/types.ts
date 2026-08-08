@@ -40,6 +40,10 @@ export interface UserProfile {
   weightUnit: WeightUnit;
   bio?: string;
   joinedDate: string;
+  heightInches?: number;
+  age?: number;
+  bodyweightLbs?: number;
+  gender?: 'male' | 'female' | 'other';
   friends: string[]; // array of user IDs
   stats: {
     totalWorkouts: number;
@@ -161,5 +165,10 @@ export interface LeaderboardEntry {
   totalBigThree: number;
   monthlyVolume: number;
   monthlyWorkouts: number;
+  heightInches?: number;
+  age?: number;
+  bodyweightLbs?: number;
+  strengthToWeightRatio: number;
+  relativeStrengthScore: number;
   rank: number;
 }

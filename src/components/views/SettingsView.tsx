@@ -39,6 +39,10 @@ export const SettingsView: React.FC = () => {
   const [displayName, setDisplayName] = useState(currentUser?.displayName || '');
   const [bio, setBio] = useState(currentUser?.bio || '');
   const [avatarUrl, setAvatarUrl] = useState(currentUser?.avatarUrl || PRESET_AVATARS[0]);
+  const [feet, setFeet] = useState<number>(Math.floor((currentUser?.heightInches || 68) / 12));
+  const [inches, setInches] = useState<number>((currentUser?.heightInches || 68) % 12);
+  const [age, setAge] = useState<number>(currentUser?.age || 25);
+  const [bodyweightLbs, setBodyweightLbs] = useState<number>(currentUser?.bodyweightLbs || 180);
   const [defaultRest, setDefaultRest] = useState<number>(currentUser?.settings.defaultRestSeconds || 90);
   const [saveStatus, setSaveStatus] = useState(false);
 
@@ -88,10 +92,14 @@ export const SettingsView: React.FC = () => {
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
+    const totalInches = (Number(feet) * 12) + (Number(inches) || 0);
     updateProfile({
       displayName,
       bio,
       avatarUrl,
+      heightInches: totalInches,
+      age: Number(age) || 25,
+      bodyweightLbs: Number(bodyweightLbs) || 180,
       settings: {
         ...currentUser.settings,
         defaultRestSeconds: defaultRest,
@@ -304,6 +312,64 @@ export const SettingsView: React.FC = () => {
                   onChange={e => setBio(e.target.value)}
                   className={`w-full px-4 py-2.5 rounded-xl bg-stone-950 border ${theme.cardBorderClass} ${theme.textPrimaryClass} text-sm focus:outline-none`}
                 />
+              </div>
+            </div>
+
+            {/* Body Metrics for Ratio Leaderboards */}
+            <div className="p-4 rounded-2xl bg-stone-950/80 border border-stone-800 space-y-3">
+              <label className={`block text-xs font-bold ${theme.accentClass} uppercase tracking-wider`}>
+                Body Metrics (For Height-Age-Weight Strength Ratios)
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-stone-400 mb-1">Height</label>
+                  <div className="flex gap-1">
+                    <input
+                      type="number"
+                      min={3}
+                      max={7}
+                      value={feet}
+                      onChange={e => setFeet(Number(e.target.value))}
+                      className="w-full px-2.5 py-2 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-100 focus:outline-none text-center"
+                      placeholder="Ft"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      max={11}
+                      value={inches}
+                      onChange={e => setInches(Number(e.target.value))}
+                      className="w-full px-2.5 py-2 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-100 focus:outline-none text-center"
+                      placeholder="In"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-stone-400 mb-1">Age</label>
+                  <input
+                    type="number"
+                    min={12}
+                    max={100}
+                    value={age}
+                    onChange={e => setAge(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-100 focus:outline-none text-center"
+                    placeholder="Age"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-stone-400 mb-1">Bodyweight (Lbs)</label>
+                  <input
+                    type="number"
+                    min={70}
+                    max={500}
+                    value={bodyweightLbs}
+                    onChange={e => setBodyweightLbs(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-100 focus:outline-none text-center"
+                    placeholder="Lbs"
+                  />
+                </div>
               </div>
             </div>
 

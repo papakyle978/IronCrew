@@ -7,13 +7,15 @@ interface AuthContextType {
   usersList: UserProfile[];
   isAuthenticated: boolean;
   login: (emailOrUsername: string, password?: string) => Promise<{ success: boolean; message?: string }>;
-  signup: (displayName: string, username: string, password?: string, email?: string) => Promise<{ success: boolean; message?: string }>;
+  signup: (displayName: string, username: string, password?: string, email?: string, bodyMetrics?: { heightInches?: number; age?: number; bodyweightLbs?: number }) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   updateProfile: (updatedFields: Partial<UserProfile>) => void;
   addFriendByCodeOrUsername: (codeOrUsername: string) => { success: boolean; message: string };
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const FORBIDDEN_DEFAULT_IDS = ['user-kyle', 'user-alex', 'user-sam', 'user-marcus'];
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [usersList, setUsersList] = useState<UserProfile[]>(() => {
@@ -23,10 +25,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
           const sanitized = parsed
-            .filter((u: any) => !['user-alex', 'user-sam', 'user-marcus'].includes(u.id))
+            .filter((u: any) => !FORBIDDEN_DEFAULT_IDS.includes(u.id))
             .map((u: any) => ({
               ...u,
-              friends: (u.friends || []).filter((fId: string) => !['user-alex', 'user-sam', 'user-marcus'].includes(fId)),
+              friends: (u.friends || []).filter((fId: string) => !FORBIDDEN_DEFAULT_IDS.includes(fId)),
             }));
           if (sanitized.length > 0) return sanitized;
         }
@@ -34,15 +36,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error parsing stored users', e);
       }
     }
-    return DEMO_FRIENDS;
+    return [];
   });
 
   const [currentUserId, setCurrentUserId] = useState<string>(() => {
-    const savedId = localStorage.getItem('ironcrew_current_user_id');
-    if (savedId && usersList.some(u => u.id === savedId)) {
-      return savedId;
+    const savedId = localStorage.getItem('ironcrew_current_user_id') || '';
+    if (FORBIDDEN_DEFAULT_IDS.includes(savedId)) {
+      return '';
     }
-    return 'user-kyle'; // default to Kyle
+    return savedId;
   });
 
   useEffect(() => {
@@ -50,10 +52,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [usersList]);
 
   useEffect(() => {
-    localStorage.setItem('ironcrew_current_user_id', currentUserId);
+    if (currentUserId) {
+      localStorage.setItem('ironcrew_current_user_id', currentUserId);
+    } else {
+      localStorage.removeItem('ironcrew_current_user_id');
+    }
   }, [currentUserId]);
 
-  const currentUser = usersList.find(u => u.id === currentUserId) || usersList[0] || null;
+  const currentUser = usersList.find(u => u.id === currentUserId) || null;
 
   const login = async (emailOrUsername: string, password?: string): Promise<{ success: boolean; message?: string }> => {
     const query = emailOrUsername.trim().toLowerCase();
@@ -106,7 +112,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     displayName: string,
     username: string,
     password?: string,
-    email?: string
+    email?: string,
+    bodyMetrics?: { heightInches?: number; age?: number; bodyweightLbs?: number }
   ): Promise<{ success: boolean; message?: string }> => {
     const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
     if (!cleanUsername) {
@@ -134,6 +141,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       weightUnit: 'lbs',
       bio: 'Ready to crush PRs with friends! 💪',
       joinedDate: new Date().toISOString().split('T')[0],
+      heightInches: bodyMetrics?.heightInches || 68,
+      age: bodyMetrics?.age || 25,
+      bodyweightLbs: bodyMetrics?.bodyweightLbs || 180,
       friends: [],
       stats: {
         totalWorkouts: 0,
@@ -171,17 +181,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
-    // Switch to guest or first available user or keep current
-    if (usersList.length > 0) {
-      setCurrentUserId(usersList[0].id);
-    }
+    setCurrentUserId('');
+    localStorage.removeItem('ironcrew_current_user_id');
   };
 
   const updateProfile = (updatedFields: Partial<UserProfile>) => {
     if (!currentUser) return;
+    const updated = { ...currentUser, ...updatedFields };
     setUsersList(prev =>
-      prev.map(u => (u.id === currentUser.id ? { ...u, ...updatedFields } : u))
+      prev.map(u => (u.id === currentUser.id ? updated : u))
     );
+
+    // Sync updated user profile to MongoDB API
+    try {
+      fetch(`/api/users/${currentUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated),
+      }).catch(() => {});
+    } catch (e) {}
   };
 
   const addFriendByCodeOrUsername = (codeOrUsername: string) => {

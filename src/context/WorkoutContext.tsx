@@ -152,6 +152,46 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [activeWorkout]);
 
+  // Initial server sync when user logs in or changes
+  useEffect(() => {
+    if (!currentUser) return;
+
+    fetch(`/api/workouts?userId=${currentUser.id}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setPastWorkouts(prev => {
+            const ids = new Set(prev.map(w => w.id));
+            const newItems = data.filter((w: any) => !ids.has(w.id));
+            return [...newItems, ...prev];
+          });
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/feed')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setFriendFeed(data);
+        }
+      })
+      .catch(() => {});
+
+    fetch(`/api/routines?userId=${currentUser.id}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setRoutines(prev => {
+            const ids = new Set(prev.map(r => r.id));
+            const newItems = data.filter((r: any) => !ids.has(r.id));
+            return [...prev, ...newItems];
+          });
+        }
+      })
+      .catch(() => {});
+  }, [currentUser?.id]);
+
   // Rest Timer ticking effect
   useEffect(() => {
     let timerId: any = null;
@@ -512,6 +552,21 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     setFriendFeed(prev => [newFeedPost, ...prev]);
 
+    // Send completed workout log and feed post to MongoDB Atlas API
+    try {
+      fetch('/api/workouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(finishedSession),
+      }).catch(() => {});
+
+      fetch('/api/feed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newFeedPost),
+      }).catch(() => {});
+    } catch (e) {}
+
     // Clear active workout & rest timer
     setActiveWorkout(null);
     stopRestTimer();
@@ -550,6 +605,15 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
 
     setRoutines(prev => [newRoutine, ...prev]);
+
+    // Send routine to MongoDB Atlas API
+    try {
+      fetch('/api/routines', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newRoutine),
+      }).catch(() => {});
+    } catch (e) {}
   };
 
   const likeFeedPost = (postId: string) => {
@@ -564,6 +628,15 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return { ...p, likes: newLikes };
       })
     );
+
+    // Sync like to MongoDB Atlas API
+    try {
+      fetch(`/api/feed/${postId}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser.id }),
+      }).catch(() => {});
+    } catch (e) {}
   };
 
   const addCommentToFeedPost = (postId: string, text: string) => {
@@ -590,6 +663,19 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const squat = u.stats.squatMaxLbs || 0;
       const deadlift = u.stats.deadliftMaxLbs || 0;
       const ohp = u.stats.ohpMaxLbs || 0;
+      const totalBigThree = bench + squat + deadlift;
+
+      const bw = u.bodyweightLbs || 180;
+      const height = u.heightInches || 68;
+      const age = u.age || 25;
+
+      const strengthToWeightRatio = bw > 0 ? Number((totalBigThree / bw).toFixed(2)) : 0;
+      const heightFactor = 1 + ((height - 68) * 0.008);
+      const ageFactor = age > 35 ? 1 + ((age - 35) * 0.008) : 1;
+      const relativeStrengthScore = bw > 0
+        ? Number(((totalBigThree / Math.pow(bw, 0.67)) * heightFactor * ageFactor * 4).toFixed(1))
+        : 0;
+
       return {
         userId: u.id,
         userName: u.displayName,
@@ -598,9 +684,14 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         squatMax: squat,
         deadliftMax: deadlift,
         ohpMax: ohp,
-        totalBigThree: bench + squat + deadlift,
+        totalBigThree,
         monthlyVolume: u.stats.totalVolumeLbs || 0,
         monthlyWorkouts: u.stats.totalWorkouts || 0,
+        heightInches: u.heightInches,
+        age: u.age,
+        bodyweightLbs: u.bodyweightLbs,
+        strengthToWeightRatio,
+        relativeStrengthScore,
         rank: 0,
       };
     });

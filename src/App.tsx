@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { WorkoutProvider } from './context/WorkoutContext';
 import { Navbar, ViewTab } from './components/Navbar';
 import { DashboardView } from './components/views/DashboardView';
@@ -14,11 +14,17 @@ import { RestTimerFloating } from './components/RestTimerFloating';
 import { PRCelebrationModal } from './components/PRCelebrationModal';
 import { PlateCalculatorModal } from './components/PlateCalculatorModal';
 import { AuthModal } from './components/AuthModal';
+import { AuthScreen } from './components/AuthScreen';
 
 function MainAppContent() {
   const [currentTab, setCurrentTab] = useState<ViewTab>('dashboard');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const { currentUser } = useAuth();
   const { theme } = useTheme();
+
+  if (!currentUser) {
+    return <AuthScreen />;
+  }
 
   return (
     <div className={`min-h-screen ${theme.bgClass} ${theme.textPrimaryClass} flex flex-col font-sans selection:bg-amber-400 selection:text-zinc-950`}>

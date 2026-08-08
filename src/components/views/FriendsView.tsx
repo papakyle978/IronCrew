@@ -22,6 +22,7 @@ export const FriendsView: React.FC = () => {
   const { theme, formatWeight } = useTheme();
 
   const [activeTab, setActiveTab] = useState<'feed' | 'leaderboard'>('feed');
+  const [leaderboardCategory, setLeaderboardCategory] = useState<'normalized' | 'ratio' | 'raw'>('normalized');
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [friendCodeInput, setFriendCodeInput] = useState('');
   const [addFriendStatus, setAddFriendStatus] = useState<{ success: boolean; message: string } | null>(null);
@@ -276,54 +277,126 @@ export const FriendsView: React.FC = () => {
       {/* Leaderboard View */}
       {activeTab === 'leaderboard' && (
         <div className="space-y-4 max-w-3xl mx-auto">
-          <div className={`${theme.cardBgClass} ${theme.cardBorderClass} border rounded-3xl p-6 shadow-xl space-y-4`}>
-            <div className="flex items-center justify-between pb-3 border-b border-stone-800">
-              <h3 className={`text-base font-bold ${theme.textPrimaryClass} flex items-center gap-2`}>
-                <Trophy className="w-5 h-5 text-amber-400" />
-                <span>Big Three Strength Leaderboard</span>
-              </h3>
-              <span className={`text-xs ${theme.textSecondaryClass}`}>Ranked by Big 3 Total Lbs</span>
+          <div className={`${theme.cardBgClass} ${theme.cardBorderClass} border rounded-3xl p-6 shadow-xl space-y-5`}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-800">
+              <div>
+                <h3 className={`text-base font-bold ${theme.textPrimaryClass} flex items-center gap-2`}>
+                  <Trophy className="w-5 h-5 text-amber-400" />
+                  <span>Strength Leaderboard</span>
+                </h3>
+                <p className={`text-xs ${theme.textSecondaryClass} mt-0.5`}>
+                  Compare raw totals, pound-for-pound ratios, and height-age adjusted strength indexes.
+                </p>
+              </div>
+
+              {/* Category Filter Pills */}
+              <div className="flex gap-1 p-1 rounded-2xl bg-stone-950 border border-stone-800 shrink-0">
+                <button
+                  onClick={() => setLeaderboardCategory('normalized')}
+                  className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all ${
+                    leaderboardCategory === 'normalized'
+                      ? `${theme.accentBgClass} text-zinc-950`
+                      : 'text-stone-400 hover:text-white'
+                  }`}
+                >
+                  Height & Age Index
+                </button>
+                <button
+                  onClick={() => setLeaderboardCategory('ratio')}
+                  className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all ${
+                    leaderboardCategory === 'ratio'
+                      ? `${theme.accentBgClass} text-zinc-950`
+                      : 'text-stone-400 hover:text-white'
+                  }`}
+                >
+                  Strength/BW
+                </button>
+                <button
+                  onClick={() => setLeaderboardCategory('raw')}
+                  className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all ${
+                    leaderboardCategory === 'raw'
+                      ? `${theme.accentBgClass} text-zinc-950`
+                      : 'text-stone-400 hover:text-white'
+                  }`}
+                >
+                  Raw Lbs
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3">
-              {leaderboard.map((entry, idx) => {
-                const isMe = currentUser?.id === entry.userId;
+              {[...leaderboard]
+                .sort((a, b) => {
+                  if (leaderboardCategory === 'normalized') return b.relativeStrengthScore - a.relativeStrengthScore;
+                  if (leaderboardCategory === 'ratio') return b.strengthToWeightRatio - a.strengthToWeightRatio;
+                  return b.totalBigThree - a.totalBigThree;
+                })
+                .map((entry, idx) => {
+                  const isMe = currentUser?.id === entry.userId;
+                  const feet = entry.heightInches ? Math.floor(entry.heightInches / 12) : 5;
+                  const inches = entry.heightInches ? entry.heightInches % 12 : 10;
 
-                return (
-                  <div
-                    key={entry.userId}
-                    className={`p-4 rounded-2xl border flex items-center justify-between gap-4 transition-all ${
-                      isMe
-                        ? `${theme.badgeBgClass} ${theme.accentBorderClass}`
-                        : 'bg-stone-950/60 border-stone-800'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs ${
-                        idx === 0 ? 'bg-amber-400 text-zinc-950' : idx === 1 ? 'bg-stone-300 text-zinc-950' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-stone-800 text-stone-400'
-                      }`}>
-                        #{idx + 1}
-                      </span>
-                      <img src={entry.userAvatar} alt={entry.userName} className="w-10 h-10 rounded-full object-cover border border-stone-700" />
-                      <div>
-                        <p className={`text-sm font-bold ${theme.textPrimaryClass}`}>
-                          {entry.userName} {isMe ? '(You)' : ''}
-                        </p>
-                        <p className={`text-xs ${theme.textSecondaryClass} font-mono`}>
-                          Bench: {entry.benchPressMax} &bull; Squat: {entry.squatMax} &bull; DL: {entry.deadliftMax}
-                        </p>
+                  return (
+                    <div
+                      key={entry.userId}
+                      className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
+                        isMe
+                          ? `${theme.badgeBgClass} ${theme.accentBorderClass}`
+                          : 'bg-stone-950/60 border-stone-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${
+                          idx === 0 ? 'bg-amber-400 text-zinc-950' : idx === 1 ? 'bg-stone-300 text-zinc-950' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-stone-800 text-stone-400'
+                        }`}>
+                          #{idx + 1}
+                        </span>
+                        <img src={entry.userAvatar} alt={entry.userName} className="w-10 h-10 rounded-full object-cover border border-stone-700 shrink-0" />
+                        <div>
+                          <p className={`text-sm font-bold ${theme.textPrimaryClass} flex items-center gap-1.5`}>
+                            <span>{entry.userName}</span>
+                            {isMe && <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 font-extrabold">(You)</span>}
+                          </p>
+                          <p className={`text-xs ${theme.textSecondaryClass} font-mono mt-0.5`}>
+                            Bench: {entry.benchPressMax} &bull; Squat: {entry.squatMax} &bull; DL: {entry.deadliftMax}
+                          </p>
+                          <div className="flex flex-wrap gap-2 text-[10px] text-stone-400 mt-1">
+                            <span>Height: {feet}'{inches}"</span>
+                            <span>&bull;</span>
+                            <span>Age: {entry.age || 25}</span>
+                            <span>&bull;</span>
+                            <span>BW: {entry.bodyweightLbs || 180} lbs</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-right sm:text-right flex sm:flex-col justify-between items-end border-t sm:border-0 border-stone-800/80 pt-2 sm:pt-0">
+                        {leaderboardCategory === 'normalized' ? (
+                          <>
+                            <p className={`text-xl font-black font-mono ${theme.accentClass}`}>
+                              {entry.relativeStrengthScore.toFixed(1)} <span className="text-xs font-normal">pts</span>
+                            </p>
+                            <p className={`text-[10px] ${theme.textSecondaryClass}`}>Height-Age-BW Ratio Index</p>
+                          </>
+                        ) : leaderboardCategory === 'ratio' ? (
+                          <>
+                            <p className={`text-xl font-black font-mono ${theme.accentClass}`}>
+                              {entry.strengthToWeightRatio.toFixed(2)}x <span className="text-xs font-normal">BW</span>
+                            </p>
+                            <p className={`text-[10px] ${theme.textSecondaryClass}`}>Strength-to-Weight Ratio</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className={`text-xl font-black font-mono ${theme.accentClass}`}>
+                              {formatWeight(entry.totalBigThree)}
+                            </p>
+                            <p className={`text-[10px] ${theme.textSecondaryClass}`}>Big 3 Total Lbs</p>
+                          </>
+                        )}
                       </div>
                     </div>
-
-                    <div className="text-right">
-                      <p className={`text-lg font-black font-mono ${theme.accentClass}`}>
-                        {formatWeight(entry.totalBigThree)}
-                      </p>
-                      <p className={`text-[10px] ${theme.textSecondaryClass}`}>Big 3 Total</p>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           </div>
         </div>

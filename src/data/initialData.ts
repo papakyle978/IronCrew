@@ -351,36 +351,7 @@ export const INITIAL_ROUTINES: Routine[] = [
   },
 ];
 
-export const DEMO_FRIENDS: UserProfile[] = [
-  {
-    id: 'user-kyle',
-    username: 'kyle_lifts',
-    displayName: 'Kyle',
-    password: 'password123',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
-    friendCode: 'KYLE88',
-    weightUnit: 'lbs',
-    bio: 'Pushing for 225 Bench and 315 Squat! 💥',
-    joinedDate: '2026-01-10',
-    friends: [],
-    stats: {
-      totalWorkouts: 12,
-      totalVolumeLbs: 124500,
-      streakDays: 4,
-      benchPressMaxLbs: 225,
-      squatMaxLbs: 315,
-      deadliftMaxLbs: 405,
-      ohpMaxLbs: 145,
-    },
-    settings: {
-      theme: 'iron-gym',
-      defaultRestSeconds: 90,
-      autoStartRestTimer: true,
-      soundEnabled: true,
-      barbellWeightLbs: 45,
-    },
-  },
-];
+export const DEMO_FRIENDS: UserProfile[] = [];
 
 export const INITIAL_FRIEND_FEED: FriendFeedPost[] = [];
 
