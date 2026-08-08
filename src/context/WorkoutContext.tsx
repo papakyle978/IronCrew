@@ -153,21 +153,49 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [activeWorkout]);
 
   // Initial server sync when user logs in or changes
-  // Look for your initial server sync useEffect hook inside src/context/WorkoutContext.tsx and update it:
+  // Create an explicit standalone string token variable for esbuild safety
+  const currentUserIdToken = currentUser ? currentUser.id : '';
+
+  // Initial server sync when user logs in or changes
   useEffect(() => {
-    if (!currentUser) return;
-  
-    fetch(`/api/workouts?userId=${currentUser.id}`)
+    if (!currentUserIdToken) return;
+
+    fetch(`/api/workouts?userId=${currentUserIdToken}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
-        if (Array.isArray(data)) {
-          // Clear local cache arrays and overwrite them cleanly with authentic cloud database tables
-          setPastWorkouts(data);
+        if (Array.isArray(data) && data.length > 0) {
+          setPastWorkouts(prev => {
+            const ids = new Set(prev.map(w => w.id));
+            const newItems = data.filter((w: any) => !ids.has(w.id));
+            return [...newItems, ...prev];
+          });
         }
-    })
-        })
-    .catch(() => {});
-}, [currentUser ? currentUser.id : '']);
+      })
+      .catch(() => {});
+
+    fetch('/api/feed')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setFriendFeed(data);
+        }
+      })
+      .catch(() => {});
+
+    fetch(`/api/routines?userId=${currentUserIdToken}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setRoutines(prev => {
+            const ids = new Set(prev.map(r => r.id));
+            const newItems = data.filter((r: any) => !ids.has(r.id));
+            return [...prev, ...newItems];
+          });
+        }
+      })
+      .catch(() => {});
+  }, [currentUserIdToken]); // <-- Clean, single-variable reference string
+
 
 
     fetch('/api/feed')
