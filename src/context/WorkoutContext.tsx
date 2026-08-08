@@ -165,10 +165,9 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setPastWorkouts(data);
         }
     })
+        })
     .catch(() => {});
-    
-  // ... Keep your other fetch calls here
-  }, [currentUser?.id]);
+}, [currentUser ? currentUser.id : '']);
 
 
     fetch('/api/feed')

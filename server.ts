@@ -18,9 +18,12 @@ if (!cached) {
   cached = (global as any).mongoCache = { conn: null, promise: null, lastError: null };
 }
 
+// Replace your getDb function inside server.ts with this loud debugger setup:
 async function getDb(forceRetry = false): Promise<Db | null> {
   const mongodbUri = process.env.MONGODB_URI || '';
+  
   if (!mongodbUri.trim()) {
+    console.warn('[MongoDB] MONGODB_URI environment string is completely missing!');
     return null;
   }
 
@@ -36,35 +39,34 @@ async function getDb(forceRetry = false): Promise<Db | null> {
 
   if (!cached.promise) {
     const opts = {
-      maxPoolSize: 1,             // Essential for serverless! Stops connections from stacking
-      minPoolSize: 0,             // Allows idle connections to close
-      serverSelectionTimeoutMS: 10000,
+      maxPoolSize: 1,
+      minPoolSize: 0,
+      serverSelectionTimeoutMS: 15000, // Generous window for serverless spin-up
       connectTimeoutMS: 15000,
     };
 
     cached.promise = (async () => {
       try {
-        // Replace lines 27-29 inside your getDb function in server.ts with:
-        console.log('[MongoDB] Connecting to cluster database...');
+        console.log('[MongoDB] Triggering handshake to Atlas cluster dataset...');
         const client = new MongoClient(mongodbUri, opts);
         await client.connect();
-        // Let MongoDB natively resolve your target database name parsed directly from the URI!
-        const db = client.db(); 
-        console.log('[MongoDB] Successfully connected to live cloud database cluster!');
+        const db = client.db(); // Natively capture the database name from your string query parameters!
+        console.log('[MongoDB] Cloud connection completely established!');
         cached.conn = db;
         cached.lastError = null;
         return db;
       } catch (err: any) {
         cached.promise = null;
         cached.lastError = err?.message || String(err);
-        console.error('[MongoDB] Connection error:', cached.lastError);
-        throw new Error(`MongoDB Connection Error: ${cached.lastError}`);
+        console.error('[MongoDB] Critical connection failure details:', cached.lastError);
+        throw err; // Blow up loudly so it shows up inside Vercel Dashboard logs!
       }
     })();
   }
 
   return await cached.promise;
 }
+
 
 // In-Memory Fallback Store (Used ONLY when MONGODB_URI is not set at all)
 const memoryStore = {
