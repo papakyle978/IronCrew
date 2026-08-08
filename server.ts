@@ -36,8 +36,10 @@ async function getDb(forceRetry = false): Promise<Db | null> {
 
   if (!cached.promise) {
     const opts = {
-      serverSelectionTimeoutMS: 5000,
-      connectTimeoutMS: 5000,
+      maxPoolSize: 1,             // Essential for serverless! Stops connections from stacking
+      minPoolSize: 0,             // Allows idle connections to close
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 15000,
     };
 
     cached.promise = (async () => {
@@ -443,36 +445,34 @@ app.get('/api/vercel-guide', (req, res) => {
   });
 });
 
-// Setup Vite development middleware or static production serving
-async function initServer() {
-  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-    // Vite development middleware layer
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
-    // Traditional production engine serving
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
+// ====================================================================
+// NATIVE SERVERLESS INITIALIZATION LAYER (REPLACES initServer FUNCTION)
+// ====================================================================
 
-  // Only run app.listen when NOT inside Vercel's infrastructure environment
-  if (!process.env.VERCEL) {
-    const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`IronCrew Full-Stack Server running on http://0.0.0.0:${PORT}`);
-    });
-  }
+// 1. Dev/Local serving configuration (Bypassed entirely on Vercel production)
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  const { createServer: createViteServer } = await import('vite');
+  const vite = await createViteServer({
+    server: { middlewareMode: true },
+    appType: 'spa',
+  });
+  app.use(vite.middlewares);
+} else if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
+  // Standalone production Node execution
+  const distPath = path.join(process.cwd(), 'dist');
+  app.use(express.static(distPath));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
 }
 
-initServer().catch(err => {
-  console.error('Failed to initialize server middleware:', err);
-});
+// 2. Continuous Listener (Only spawns locally; Vercel mounts app raw)
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`IronCrew Full-Stack Server running on http://0.0.0:${PORT}`);
+  });
+}
 
-// Replace 'export default app;' at the bottom of server.ts with:
+// 3. Export for Vercel Serverless Routing Layer
 export default app;
