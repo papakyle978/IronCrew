@@ -1,11 +1,7 @@
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import { MongoClient, Db } from 'mongodb';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
@@ -456,7 +452,7 @@ async function initServer() {
     });
     app.use(vite.middlewares);
   } else if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
-    const distPath = path.join(__dirname, 'dist');
+    const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
