@@ -218,8 +218,8 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
           });
         }
       })
-      .catch(() => {});
-  }, [currentUser?.id]);
+     .catch(() => {});
+  }, [currentUserIdToken]); // <-- CHANGE THIS LINE to use the safe token variable!
 
   // Rest Timer ticking effect
   useEffect(() => {
