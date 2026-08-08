@@ -13,31 +13,60 @@ async function startServer() {
 
   app.use(express.json());
 
-  // MongoDB connection setup
-  const mongodbUri = process.env.MONGODB_URI || '';
-  const isMongoDBConfigured = Boolean(mongodbUri.trim());
+  // MongoDB connection setup with cached connection promise
+  interface MongoCache {
+    conn: Db | null;
+    promise: Promise<Db | null> | null;
+    lastError: string | null;
+  }
 
-  let cachedDb: Db | null = null;
-  let connectionFailed = false;
+  let cached: MongoCache = (global as any).mongoCache;
+  if (!cached) {
+    cached = (global as any).mongoCache = { conn: null, promise: null, lastError: null };
+  }
 
   async function getDb(forceRetry = false): Promise<Db | null> {
-    if (cachedDb) return cachedDb;
-    if (!isMongoDBConfigured) return null;
-    if (connectionFailed && !forceRetry) return null;
-
-    try {
-      const client = new MongoClient(mongodbUri, {
-        serverSelectionTimeoutMS: 4000,
-        connectTimeoutMS: 4000,
-      });
-      await client.connect();
-      cachedDb = client.db('local');
-      connectionFailed = false;
-      return cachedDb;
-    } catch (err: any) {
-      connectionFailed = true;
+    const mongodbUri = process.env.MONGODB_URI || '';
+    if (!mongodbUri.trim()) {
       return null;
     }
+
+    if (forceRetry) {
+      cached.conn = null;
+      cached.promise = null;
+      cached.lastError = null;
+    }
+
+    if (cached.conn) {
+      return cached.conn;
+    }
+
+    if (!cached.promise) {
+      const opts = {
+        serverSelectionTimeoutMS: 5000,
+        connectTimeoutMS: 5000,
+      };
+
+      cached.promise = (async () => {
+        try {
+          console.log('[MongoDB] Connecting to cluster database "local"...');
+          const client = new MongoClient(mongodbUri, opts);
+          await client.connect();
+          const db = client.db('local');
+          console.log('[MongoDB] Successfully connected to "local" database!');
+          cached.conn = db;
+          cached.lastError = null;
+          return db;
+        } catch (err: any) {
+          cached.promise = null;
+          cached.lastError = err?.message || String(err);
+          console.error('[MongoDB] Connection error:', cached.lastError);
+          return null;
+        }
+      })();
+    }
+
+    return await cached.promise;
   }
 
   // In-Memory Fallback Store (Used when MONGODB_URI is absent or unavailable)
@@ -54,6 +83,7 @@ async function startServer() {
   // Health check
   app.get('/api/health', async (req, res) => {
     const forceRetry = req.query.retry === 'true';
+    const isMongoDBConfigured = Boolean((process.env.MONGODB_URI || '').trim());
     const db = await getDb(forceRetry);
     res.json({
       status: 'ok',
@@ -63,7 +93,17 @@ async function startServer() {
         : isMongoDBConfigured
         ? 'Local In-Memory Store (Atlas Connection Offline/Pending)'
         : 'Local In-Memory Store (Ready for MONGODB_URI)',
+      targetDatabase: 'local',
+      collections: ['accounts', 'data'],
       mongodbUriConfigured: isMongoDBConfigured,
+      connectionError: cached.lastError || null,
+      authTroubleshooting: cached.lastError?.toLowerCase().includes('auth') ? [
+        'MongoDB Atlas rejected the database username or password.',
+        '1. Go to MongoDB Atlas -> Security -> Database Access.',
+        '2. Verify or reset the password for your Database User.',
+        '3. If the password contains special characters (e.g., @, #, :, /), make sure they are URL-encoded in MONGODB_URI (%40, %23, %3A, %2F).',
+        '4. Update MONGODB_URI in Vercel / Environment Variables and redeploy.'
+      ] : null,
       vercelReady: true,
       timestamp: new Date().toISOString(),
     });
