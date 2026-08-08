@@ -31,7 +31,7 @@ async function startServer() {
         connectTimeoutMS: 4000,
       });
       await client.connect();
-      cachedDb = client.db('ironcrew_db');
+      cachedDb = client.db('local');
       connectionFailed = false;
       return cachedDb;
     } catch (err: any) {
@@ -79,7 +79,7 @@ async function startServer() {
     const db = await getDb();
     if (db) {
       try {
-        await db.collection('users').updateOne(
+        await db.collection('accounts').updateOne(
           { id: user.id },
           { $set: user },
           { upsert: true }
@@ -109,7 +109,7 @@ async function startServer() {
 
     if (db) {
       try {
-        foundUser = await db.collection('users').findOne({
+        foundUser = await db.collection('accounts').findOne({
           $or: [
             { username: q },
             { email: q }
@@ -144,7 +144,7 @@ async function startServer() {
 
     if (db) {
       try {
-        const u = await db.collection('users').findOne({ id: userId });
+        const u = await db.collection('accounts').findOne({ id: userId });
         if (u) return res.json(u);
       } catch (e) {}
     }
@@ -162,7 +162,7 @@ async function startServer() {
 
     if (db) {
       try {
-        await db.collection('users').updateOne({ id: userId }, { $set: updated }, { upsert: true });
+        await db.collection('accounts').updateOne({ id: userId }, { $set: updated }, { upsert: true });
       } catch (e) {}
     }
 
@@ -180,8 +180,9 @@ async function startServer() {
 
     if (db) {
       try {
-        const query = userId ? { userId } : {};
-        const workouts = await db.collection('workouts').find(query).sort({ startTime: -1 }).toArray();
+        const query: any = { dataType: 'workout' };
+        if (userId) query.userId = userId;
+        const workouts = await db.collection('data').find(query).sort({ startTime: -1 }).toArray();
         return res.json(workouts);
       } catch (e) {}
     }
@@ -201,7 +202,11 @@ async function startServer() {
     const db = await getDb();
     if (db) {
       try {
-        await db.collection('workouts').updateOne({ id: workout.id }, { $set: workout }, { upsert: true });
+        await db.collection('data').updateOne(
+          { id: workout.id },
+          { $set: { ...workout, dataType: 'workout' } },
+          { upsert: true }
+        );
       } catch (e) {}
     }
 
@@ -219,8 +224,9 @@ async function startServer() {
 
     if (db) {
       try {
-        const query = userId ? { $or: [{ createdBy: userId }, { isPreset: true }] } : {};
-        const routines = await db.collection('routines').find(query).toArray();
+        const query: any = { dataType: 'routine' };
+        if (userId) query.$or = [{ createdBy: userId }, { isPreset: true }];
+        const routines = await db.collection('data').find(query).toArray();
         return res.json(routines);
       } catch (e) {}
     }
@@ -234,7 +240,11 @@ async function startServer() {
 
     if (db) {
       try {
-        await db.collection('routines').updateOne({ id: routine.id }, { $set: routine }, { upsert: true });
+        await db.collection('data').updateOne(
+          { id: routine.id },
+          { $set: { ...routine, dataType: 'routine' } },
+          { upsert: true }
+        );
       } catch (e) {}
     }
 
@@ -247,7 +257,7 @@ async function startServer() {
     const db = await getDb();
     if (db) {
       try {
-        const feed = await db.collection('feed').find({}).sort({ timestamp: -1 }).toArray();
+        const feed = await db.collection('data').find({ dataType: 'feed' }).sort({ timestamp: -1 }).toArray();
         return res.json(feed);
       } catch (e) {}
     }
@@ -259,7 +269,11 @@ async function startServer() {
     const db = await getDb();
     if (db) {
       try {
-        await db.collection('feed').updateOne({ id: post.id }, { $set: post }, { upsert: true });
+        await db.collection('data').updateOne(
+          { id: post.id },
+          { $set: { ...post, dataType: 'feed' } },
+          { upsert: true }
+        );
       } catch (e) {}
     }
 
@@ -274,13 +288,16 @@ async function startServer() {
 
     if (db) {
       try {
-        const p = await db.collection('feed').findOne({ id: postId });
+        const p = await db.collection('data').findOne({ id: postId, dataType: 'feed' });
         if (p) {
           const likes: string[] = p.likes || [];
           const updatedLikes = likes.includes(userId)
             ? likes.filter(id => id !== userId)
             : [...likes, userId];
-          await db.collection('feed').updateOne({ id: postId }, { $set: { likes: updatedLikes } });
+          await db.collection('data').updateOne(
+            { id: postId, dataType: 'feed' },
+            { $set: { likes: updatedLikes } }
+          );
         }
       } catch (e) {}
     }
