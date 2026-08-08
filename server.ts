@@ -14,11 +14,13 @@ async function startServer() {
   app.use(express.json());
 
   // MongoDB connection setup
-  const mongodbUri = process.env.MONGODB_URI || '';
+  const DEFAULT_MONGODB_URI = 'mongodb+srv://papakyle978_db_user:mUyKU1qr4ufEKV9Y@cluster0.r5sysjm.mongodb.net/ironcrew_db?retryWrites=true&w=majority&appName=Cluster0';
+  const mongodbUri = process.env.MONGODB_URI || DEFAULT_MONGODB_URI;
   const isMongoDBConfigured = Boolean(mongodbUri.trim());
 
   let cachedDb: Db | null = null;
   let connectionFailed = false;
+  let lastDbError = '';
 
   async function getDb(forceRetry = false): Promise<Db | null> {
     if (cachedDb) return cachedDb;
@@ -27,17 +29,18 @@ async function startServer() {
 
     try {
       const client = new MongoClient(mongodbUri, {
-        serverSelectionTimeoutMS: 2500,
-        connectTimeoutMS: 2500,
-        tls: true,
-        tlsAllowInvalidCertificates: true,
+        serverSelectionTimeoutMS: 4000,
+        connectTimeoutMS: 4000,
       });
       await client.connect();
       cachedDb = client.db('ironcrew_db');
       connectionFailed = false;
+      lastDbError = '';
       return cachedDb;
     } catch (err: any) {
       connectionFailed = true;
+      lastDbError = err?.message || String(err);
+      console.error('MongoDB Atlas connection error:', lastDbError);
       return null;
     }
   }
@@ -62,10 +65,15 @@ async function startServer() {
       service: 'IronCrew Strength API',
       database: db
         ? 'MongoDB Atlas (Connected)'
-        : isMongoDBConfigured
-        ? 'Local In-Memory Store (MongoDB Atlas connection pending/offline)'
-        : 'Local In-Memory Store (Ready for MONGODB_URI)',
+        : 'Local In-Memory Store (Atlas Connection Offline/Pending)',
       mongodbUriConfigured: isMongoDBConfigured,
+      activeUri: mongodbUri.replace(/:[^:@]+@/, ':****@'),
+      lastConnectionError: lastDbError || null,
+      atlasTroubleshooting: !db ? [
+        '1. Ensure Network Access in MongoDB Atlas allows 0.0.0.0/0 (Allow Access from Anywhere).',
+        '2. Verify Database User credentials (papakyle978_db_user).',
+        '3. Check that the cluster is active and accepting connections.'
+      ] : [],
       vercelReady: true,
       timestamp: new Date().toISOString(),
     });
