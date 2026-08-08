@@ -44,11 +44,13 @@ async function getDb(forceRetry = false): Promise<Db | null> {
 
     cached.promise = (async () => {
       try {
-        console.log('[MongoDB] Connecting to cluster database "local"...');
+        // Replace lines 27-29 inside your getDb function in server.ts with:
+        console.log('[MongoDB] Connecting to cluster database...');
         const client = new MongoClient(mongodbUri, opts);
         await client.connect();
-        const db = client.db('local');
-        console.log('[MongoDB] Successfully connected to "local" database!');
+        // Let MongoDB natively resolve your target database name parsed directly from the URI!
+        const db = client.db(); 
+        console.log('[MongoDB] Successfully connected to live cloud database cluster!');
         cached.conn = db;
         cached.lastError = null;
         return db;

@@ -153,21 +153,23 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [activeWorkout]);
 
   // Initial server sync when user logs in or changes
+  // Look for your initial server sync useEffect hook inside src/context/WorkoutContext.tsx and update it:
   useEffect(() => {
     if (!currentUser) return;
-
+  
     fetch(`/api/workouts?userId=${currentUser.id}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          setPastWorkouts(prev => {
-            const ids = new Set(prev.map(w => w.id));
-            const newItems = data.filter((w: any) => !ids.has(w.id));
-            return [...newItems, ...prev];
-          });
+        if (Array.isArray(data)) {
+          // Clear local cache arrays and overwrite them cleanly with authentic cloud database tables
+          setPastWorkouts(data);
         }
-      })
-      .catch(() => {});
+    })
+    .catch(() => {});
+    
+  // ... Keep your other fetch calls here
+  }, [currentUser?.id]);
+
 
     fetch('/api/feed')
       .then(res => res.ok ? res.json() : null)
