@@ -157,10 +157,11 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const currentUserIdToken = currentUser ? currentUser.id : '';
 
   // Initial server sync when user logs in or changes
+    // NEW, CLEAN CODE FOR YOU TO COPY AND PASTE:
   useEffect(() => {
-    if (!currentUserIdToken) return;
+    if (!currentUser || !currentUser.id) return;
 
-    fetch(`/api/workouts?userId=${currentUserIdToken}`)
+    fetch(`/api/workouts?userId=${currentUser.id}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
@@ -182,7 +183,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       })
       .catch(() => {});
 
-    fetch(`/api/routines?userId=${currentUserIdToken}`)
+    fetch(`/api/routines?userId=${currentUser.id}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
@@ -194,7 +195,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       })
       .catch(() => {});
-  }, [currentUserIdToken]); // <-- Clean, single-variable reference string
+  }, [currentUser.id]); //  FIXED! Notice the question mark is gone.
 
 
 
