@@ -1,0 +1,6 @@
+{
+  "name": "IronCrew - Friends Strength Tracker",
+  "description": "A custom strength workout app for logging lifts, tracking sets/reps/PRs, competing with friends, and customizing themes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
