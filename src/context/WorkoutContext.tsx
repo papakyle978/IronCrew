@@ -102,7 +102,6 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [activeWorkout, setActiveWorkout] = useState<any | null>(null);
   const [plateCalcTargetWeight, setPlateCalcTargetWeight] = useState<number | null>(null);
   
-  // FIXED: Added initialization structure to support RestTimerFloating component rendering safely
   const [restTimer, setRestTimer] = useState<RestTimerConfig>({
     isActive: false,
     isPaused: false,
@@ -132,7 +131,6 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .catch(() => {});
   }, [activeUserId]);
 
-  // Rest Timer Control Stubs
   const pauseRestTimer = () => setRestTimer(prev => ({ ...prev, isPaused: true }));
   const resumeRestTimer = () => setRestTimer(prev => ({ ...prev, isPaused: false }));
   const addSecondsToRestTimer = (secs: number) => setRestTimer(prev => ({ ...prev, secondsLeft: prev.secondsLeft + secs, totalSeconds: prev.totalSeconds + secs }));
@@ -240,32 +238,18 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       durationSeconds: Math.floor((Date.now() - new Date(activeWorkout.startTime).getTime()) / 1000),
     };
 
-// Look for the signup function near line 143:
     try {
-      await fetch('/api/auth/register', {
+      await fetch('/api/workouts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newUser),
+        body: JSON.stringify(finalWorkout),
       });
-    }  catch (e) {
-     console.log('Server register API offline, user stored locally.');
+      setPastWorkouts(prev => [finalWorkout, ...prev]);
+    } catch (e) {
+      console.error("Failed syncing workout to DB:", e);
     }
-
-// CHANGE IT TO THIS so it forces a local state update immediately upon registration:
-try {
-  const res = await fetch('/api/auth/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(newUser),
-  });
-  if (res.ok) {
-    const data = await res.json();
-    console.log('Successfully bound cloud database profile:', data);
-  }
-} catch (e) {
-  console.log('Server register API offline, user stored locally.');
-}
-
+    setActiveWorkout(null);
+  };
 
   const cancelWorkout = () => setActiveWorkout(null);
 
