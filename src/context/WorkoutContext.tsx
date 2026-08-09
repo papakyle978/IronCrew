@@ -117,9 +117,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     { id: 'ex-deadlift', name: 'Conventional Deadlift', muscleGroup: 'Back', equipment: 'Barbell' }
   ]);
 
-  const currentUserString = localStorage.getItem('ironcrew_user');
-  const currentUser = currentUserString ? JSON.parse(currentUserString) : null;
-  const activeUserId = currentUser?.id || 'guest';
+  const activeUserId = localStorage.getItem('ironcrew_current_user_id') || 'guest';
 
   useEffect(() => {
     if (!activeUserId || activeUserId === 'guest') return;
@@ -242,18 +240,32 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       durationSeconds: Math.floor((Date.now() - new Date(activeWorkout.startTime).getTime()) / 1000),
     };
 
+// Look for the signup function near line 143:
     try {
-      await fetch('/api/workouts', {
+      await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(finalWorkout),
+        body: JSON.stringify(newUser),
       });
-      setPastWorkouts(prev => [finalWorkout, ...prev]);
-    } catch (e) {
-      console.error("Failed syncing workout to DB:", e);
+    }  catch (e) {
+     console.log('Server register API offline, user stored locally.');
     }
-    setActiveWorkout(null);
-  };
+
+// CHANGE IT TO THIS so it forces a local state update immediately upon registration:
+try {
+  const res = await fetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(newUser),
+  });
+  if (res.ok) {
+    const data = await res.json();
+    console.log('Successfully bound cloud database profile:', data);
+  }
+} catch (e) {
+  console.log('Server register API offline, user stored locally.');
+}
+
 
   const cancelWorkout = () => setActiveWorkout(null);
 
