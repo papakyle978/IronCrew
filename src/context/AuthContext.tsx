@@ -9,17 +9,13 @@ interface AuthContextType {
 }
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => useContext(AuthContext)!;
-const FORBIDDEN = ['user-kyle', 'user-alex', 'user-sam', 'user-marcus'];
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [usersList, setUsersList] = useState<UserProfile[]>(() => {
     const s = localStorage.getItem('ironcrew_users');
-    return s ? JSON.parse(s).filter((u: any) => !FORBIDDEN.includes(u.id)) : [];
+    return s ? JSON.parse(s) : [];
   });
-  const [currentUserId, setCurrentUserId] = useState<string>(() => {
-    const id = localStorage.getItem('ironcrew_current_user_id') || '';
-    return FORBIDDEN.includes(id) ? '' : id;
-  });
+  const [currentUserId, setCurrentUserId] = useState<string>(() => localStorage.getItem('ironcrew_current_user_id') || '');
 
   useEffect(() => { localStorage.setItem('ironcrew_users', JSON.stringify(usersList)); }, [usersList]);
   useEffect(() => { currentUserId ? localStorage.setItem('ironcrew_current_user_id', currentUserId) : localStorage.removeItem('ironcrew_current_user_id'); }, [currentUserId]);
