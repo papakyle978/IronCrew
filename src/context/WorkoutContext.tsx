@@ -60,15 +60,12 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setActiveWorkout({ ...activeWorkout, isPaused: !activeWorkout.isPaused, lastTickTime: now, accumulatedTimeSeconds: activeWorkout.isPaused ? curAcc : curAcc + Math.floor((now - (activeWorkout.lastTickTime || now)) / 1000) });
   };
 
-  const getDuration = () => {
-    let d = activeWorkout?.accumulatedTimeSeconds || 0;
-    if (activeWorkout && !activeWorkout.isPaused) d += Math.floor((Date.now() - (activeWorkout.lastTickTime || Date.now())) / 1000);
-    return d || 1;
-  };
-
   const finishWorkout = async () => {
     if (!activeWorkout) return;
-    const finalW = { ...activeWorkout, dataType: 'workout', isFinished: true, endTime: new Date().toISOString(), durationSeconds: getDuration() };
+    const now = Date.now();
+    let d = activeWorkout.accumulatedTimeSeconds || 0;
+    if (!activeWorkout.isPaused) d += Math.floor((now - (activeWorkout.lastTickTime || now)) / 1000);
+    const finalW = { ...activeWorkout, dataType: 'workout', isFinished: true, endTime: new Date().toISOString(), durationSeconds: d || 1 };
     try {
       await fetch('/api/workouts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(finalW) });
       setPastWorkouts(prev => [finalW, ...prev]);
@@ -106,6 +103,9 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updateSet: (weId, sId, f) => updateActive(prev => prev.map(e => e.id === weId ? { ...e, sets: e.sets.map(s => s.id === sId ? { ...s, ...f } : s) } : e)),
       toggleSetCompleted: (weId, sId) => updateActive(prev => prev.map(e => e.id === weId ? { ...e, sets: e.sets.map(s => s.id === sId ? { ...s, completed: !s.completed } : s) } : e)),
       likeFeedPost: (pId) => setFriendFeed(p => p.map(x => x.id === pId ? { ...x, likes: x.likes.includes(uid) ? x.likes.filter(id => id !== uid) : [...x.likes, uid] } : x)),
-      addCommentToFeedPost: (pId, txt) => setFriendFeed(p => p.map(x => x.id === pId ? { ...x, comments: [...x.comments, { id: c-${Date.now()}, userId: uid, userName: 'You', userAvatar: 'dicebear.com', text: txt, createdAt: 'Just now' }] } : x))}}>{children}</WorkoutContext.Provider>
-      );
-  };
+      addCommentToFeedPost: (pId, txt) => setFriendFeed(p => p.map(x => x.id === pId ? { ...x, comments: [...x.comments, { id: `c-${Date.now()}`, userId: uid, userName: 'You', userAvatar: 'https://dicebear.com', text: txt, createdAt: 'Just now' }] } : x))
+    }}>
+      {children}
+    </WorkoutContext.Provider>
+  );
+};
