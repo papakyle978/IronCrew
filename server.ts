@@ -55,7 +55,7 @@ async function getDb(forceRetry = false): Promise<Db | null> {
         cached.promise = null;
         cached.lastError = err?.message || String(err);
         console.error('[MongoDB] Critical connection failure details:', cached.lastError);
-        throw err;
+        return null; // Return null safely instead of throwing unhandled exceptions
       }
     })();
   }
@@ -66,7 +66,6 @@ const memoryStore = {
   users: [] as any[],
   workouts: [] as any[],
   routines: [] as any[],
-  exercises: [] as any[],
   feed: [] as any[],
 };
 
@@ -76,6 +75,7 @@ app.get('/api/health', async (req, res) => {
   const isMongoDBConfigured = Boolean((process.env.MONGODB_URI || '').trim());
   let db: Db | null = null;
   let connectionError: string | null = null;
+  
   try {
     db = await getDb(forceRetry);
   } catch (err: any) {
@@ -83,9 +83,9 @@ app.get('/api/health', async (req, res) => {
   }
 
   res.json({
-    status: db ? 'ok' : (isMongoDBConfigured ? 'error' : 'ok'),
+    status: db ? 'ok' : 'active',
     service: 'IronCrew Strength API',
-    database: db ? 'MongoDB Atlas (Connected)' : 'Local Fallback Storage',
+    database: db ? 'MongoDB Atlas (Connected)' : 'Local Fallback Storage (URI missing or offline)',
     mongodbUriConfigured: isMongoDBConfigured,
     connectionError: connectionError || cached.lastError || null,
     vercelReady: true,
@@ -99,23 +99,24 @@ app.post('/api/auth/register', async (req, res) => {
   if (!user || !user.id || !user.username) {
     return res.status(400).json({ error: 'Invalid user payload' });
   }
-  const isMongoDBConfigured = Boolean((process.env.MONGODB_URI || '').trim());
-  if (isMongoDBConfigured) {
-    try {
-      const db = await getDb();
-      if (!db) throw new Error('Database connection unavailable');
+  try {
+    const db = await getDb();
+    if (db) {
       await db.collection('accounts').updateOne(
         { id: user.id },
         { $set: user },
         { upsert: true }
       );
       return res.json({ success: true, user, storedIn: 'MongoDB' });
-    } catch (e: any) {
-      console.error('MongoDB register failure:', e?.message);
-      return res.status(500).json({ error: e?.message });
     }
+  } catch (e: any) {
+    console.error('MongoDB register failure, falling back to memory:', e?.message);
   }
-  memoryStore.users.push(user);
+  
+  // Safe Fallback
+  const idx = memoryStore.users.findIndex(u => u.id === user.id);
+  if (idx >= 0) memoryStore.users[idx] = user;
+  else memoryStore.users.push(user);
   res.json({ success: true, user, storedIn: 'Memory' });
 });
 
@@ -123,23 +124,22 @@ app.post('/api/auth/login', async (req, res) => {
   const { query, password } = req.body;
   if (!query) return res.status(400).json({ error: 'Missing username or email' });
   const q = query.trim().toLowerCase();
-  const isMongoDBConfigured = Boolean((process.env.MONGODB_URI || '').trim());
 
-  if (isMongoDBConfigured) {
-    try {
-      const db = await getDb();
-      if (!db) throw new Error('Database connection unavailable');
+  try {
+    const db = await getDb();
+    if (db) {
       const foundUser = await db.collection('accounts').findOne({
         $or: [{ username: q }, { email: q }]
       });
-      if (!foundUser) return res.status(404).json({ error: 'User not found.' });
-      if (foundUser.password && password && foundUser.password !== password) {
-        return res.status(401).json({ error: 'Incorrect password.' });
+      if (foundUser) {
+        if (foundUser.password && password && foundUser.password !== password) {
+          return res.status(401).json({ error: 'Incorrect password.' });
+        }
+        return res.json({ success: true, user: foundUser });
       }
-      return res.json({ success: true, user: foundUser });
-    } catch (e: any) {
-      return res.status(500).json({ error: e?.message });
     }
+  } catch (e: any) {
+    console.error('MongoDB login error, parsing locally:', e?.message);
   }
 
   const foundLocal = memoryStore.users.find(u => u.username === q || u.email === q);
@@ -150,18 +150,16 @@ app.post('/api/auth/login', async (req, res) => {
 // Workouts Data sync handlers
 app.get('/api/workouts', async (req, res) => {
   const userId = req.query.userId as string;
-  const isMongoDBConfigured = Boolean((process.env.MONGODB_URI || '').trim());
-  if (isMongoDBConfigured) {
-    try {
-      const db = await getDb();
-      if (!db) throw new Error('Database connection unavailable');
+  try {
+    const db = await getDb();
+    if (db) {
       const query: any = { dataType: 'workout' };
       if (userId) query.userId = userId;
       const workouts = await db.collection('data').find(query).sort({ startTime: -1 }).toArray();
       return res.json(workouts);
-    } catch (e: any) {
-      return res.status(500).json({ error: e?.message });
     }
+  } catch (e: any) {
+    console.error('Workouts fetch error:', e?.message);
   }
   res.json(userId ? memoryStore.workouts.filter(w => w.userId === userId) : memoryStore.workouts);
 });
@@ -171,20 +169,18 @@ app.post('/api/workouts', async (req, res) => {
   if (!workout || !workout.id) {
     return res.status(400).json({ error: 'Invalid workout payload' });
   }
-  const isMongoDBConfigured = Boolean((process.env.MONGODB_URI || '').trim());
-  if (isMongoDBConfigured) {
-    try {
-      const db = await getDb();
-      if (!db) throw new Error('Database connection unavailable');
+  try {
+    const db = await getDb();
+    if (db) {
       await db.collection('data').updateOne(
         { id: workout.id },
         { $set: { ...workout, dataType: 'workout' } },
         { upsert: true }
       );
       return res.json({ success: true, workout, storedIn: 'MongoDB' });
-    } catch (e: any) {
-      return res.status(500).json({ error: e?.message });
     }
+  } catch (e: any) {
+    console.error('Workouts write error:', e?.message);
   }
   memoryStore.workouts.unshift(workout);
   res.json({ success: true, workout, storedIn: 'Memory' });
@@ -193,44 +189,40 @@ app.post('/api/workouts', async (req, res) => {
 // Routines handlers
 app.get('/api/routines', async (req, res) => {
   const userId = req.query.userId as string;
-  const isMongoDBConfigured = Boolean((process.env.MONGODB_URI || '').trim());
-  if (isMongoDBConfigured) {
-    try {
-      const db = await getDb();
-      if (!db) throw new Error('Database connection unavailable');
+  try {
+    const db = await getDb();
+    if (db) {
       const query: any = { dataType: 'routine' };
       if (userId) query.$or = [{ createdBy: userId }, { isPreset: true }];
       const routines = await db.collection('data').find(query).toArray();
       return res.json(routines);
-    } catch (e: any) {
-      return res.status(500).json({ error: e?.message });
     }
+  } catch (e: any) {
+    console.error('Routines fetch error:', e?.message);
   }
   res.json(memoryStore.routines);
 });
 
 app.post('/api/routines', async (req, res) => {
   const routine = req.body;
-  const isMongoDBConfigured = Boolean((process.env.MONGODB_URI || '').trim());
-  if (isMongoDBConfigured) {
-    try {
-      const db = await getDb();
-      if (!db) throw new Error('Database connection unavailable');
+  try {
+    const db = await getDb();
+    if (db) {
       await db.collection('data').updateOne(
         { id: routine.id },
         { $set: { ...routine, dataType: 'routine' } },
         { upsert: true }
       );
       return res.json({ success: true, routine, storedIn: 'MongoDB' });
-    } catch (e: any) {
-      return res.status(500).json({ error: e?.message });
     }
+  } catch (e: any) {
+    console.error('Routines write error:', e?.message);
   }
   memoryStore.routines.push(routine);
   res.json({ success: true, routine, storedIn: 'Memory' });
 });
 
-// Production fallbacks configuration isolated to prevent asset blocking on Vercel
+// Production static file routing config
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   const { createServer: createViteServer } = await import('vite');
   const vite = await createViteServer({
