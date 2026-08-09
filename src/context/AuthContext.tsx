@@ -19,6 +19,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => { localStorage.setItem('ironcrew_users', JSON.stringify(usersList)); }, [usersList]);
   useEffect(() => { currentUserId ? localStorage.setItem('ironcrew_current_user_id', currentUserId) : localStorage.removeItem('ironcrew_current_user_id'); }, [currentUserId]);
+
+  useEffect(() => {
+    fetch('/api/users')
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setUsersList(prev => {
+            const map = new Map<string, UserProfile>();
+            prev.forEach(u => map.set(u.id, u));
+            data.forEach((u: UserProfile) => {
+              if (u && u.id) {
+                const existing = map.get(u.id);
+                map.set(u.id, { ...existing, ...u });
+              }
+            });
+            return Array.from(map.values());
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const currentUser = usersList.find(u => u.id === currentUserId) || null;
 
   const login = async (emailOrUsername: string, password?: string) => {
@@ -38,8 +60,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cu = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
     if (!cu) return { success: false, message: 'Invalid username' };
     const newUser: UserProfile = {
-      id: `u-${Date.now()}`, username: cu, displayName: displayName.trim() || username, email: email?.trim().toLowerCase() || `${cu}@ironcrew.app`, password: password?.trim(), avatarUrl: `https://dicebear.com{cu}`, friendCode: Math.random().toString(36).substring(2, 8).toUpperCase(), weightUnit: 'lbs', bio: 'Ready to crush PRs with friends!', joinedDate: new Date().toISOString().split('T'), heightInches: metrics?.heightInches || 68, age: metrics?.age || 25, bodyweightLbs: metrics?.bodyweightLbs || 180, friends: [],
-      stats: { totalWorkouts: 0, totalVolumeLbs: 0, streakDays: 1, benchPressMaxLbs: 0, squatMaxLbs: 0, deadliftMaxLbs: 0, ohpMaxLbs: 0 }, settings: { theme: 'iron-gym', defaultRestSeconds: 90, autoStartRestTimer: true, soundEnabled: true, barbellWeightLbs: 45 }
+      id: `u-${Date.now()}`,
+      username: cu,
+      displayName: displayName.trim() || username,
+      email: email?.trim().toLowerCase() || `${cu}@ironcrew.app`,
+      password: password?.trim(),
+      avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${cu}`,
+      friendCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
+      weightUnit: 'lbs',
+      bio: 'Ready to crush PRs with friends!',
+      joinedDate: new Date().toISOString().split('T')[0],
+      heightInches: metrics?.heightInches || 68,
+      age: metrics?.age || 25,
+      bodyweightLbs: metrics?.bodyweightLbs || 180,
+      friends: [],
+      stats: { totalWorkouts: 0, totalVolumeLbs: 0, streakDays: 1, benchPressMaxLbs: 0, squatMaxLbs: 0, deadliftMaxLbs: 0, ohpMaxLbs: 0 },
+      settings: { theme: 'iron-gym', defaultRestSeconds: 90, autoStartRestTimer: true, soundEnabled: true, barbellWeightLbs: 45 }
     };
     setUsersList(p => [...p, newUser]); setCurrentUserId(newUser.id);
     try { await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newUser) }); } catch (e) {}

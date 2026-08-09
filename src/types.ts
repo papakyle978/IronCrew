@@ -63,6 +63,14 @@ export interface UserProfile {
   };
 }
 
+export interface RestTimerConfig {
+  secondsLeft: number;
+  totalSeconds: number;
+  isActive: boolean;
+  isPaused: boolean;
+  exerciseName?: string;
+}
+
 export type MuscleGroup = 'Chest' | 'Back' | 'Legs' | 'Shoulders' | 'Arms' | 'Core' | 'Full Body';
 
 export interface Exercise {

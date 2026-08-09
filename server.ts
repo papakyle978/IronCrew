@@ -104,6 +104,49 @@ app.get('/api/health', async (req, res) => {
 });
 
 // Auth handlers
+app.get('/api/users', async (req, res) => {
+  try {
+    const db = await getDb();
+    if (db) {
+      const users = await db.collection('accounts').find({}).toArray();
+      const safeUsers = users.map(({ password, _id, ...rest }) => rest);
+      return res.json(safeUsers);
+    }
+  } catch (e: any) {
+    console.error('Fetch users error:', e?.message);
+  }
+  const safeMemUsers = memoryStore.users.map(({ password, ...rest }) => rest);
+  res.json(safeMemUsers);
+});
+
+app.put('/api/users/:id', async (req, res) => {
+  const userId = req.params.id;
+  const updatedData = req.body;
+  if (!userId || !updatedData) {
+    return res.status(400).json({ error: 'Invalid update payload' });
+  }
+  try {
+    const db = await getDb();
+    if (db) {
+      await db.collection('accounts').updateOne(
+        { id: userId },
+        { $set: updatedData },
+        { upsert: true }
+      );
+      return res.json({ success: true, storedIn: 'MongoDB' });
+    }
+  } catch (e: any) {
+    console.error('Update user error:', e?.message);
+  }
+  const idx = memoryStore.users.findIndex(u => u.id === userId);
+  if (idx >= 0) {
+    memoryStore.users[idx] = { ...memoryStore.users[idx], ...updatedData };
+  } else {
+    memoryStore.users.push(updatedData);
+  }
+  res.json({ success: true, storedIn: 'Memory' });
+});
+
 app.post('/api/auth/register', async (req, res) => {
   const user = req.body;
   if (!user || !user.id || !user.username) {

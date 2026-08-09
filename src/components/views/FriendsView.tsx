@@ -324,80 +324,94 @@ export const FriendsView: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-3">
-              {[...leaderboard]
-                .sort((a, b) => {
-                  if (leaderboardCategory === 'normalized') return b.relativeStrengthScore - a.relativeStrengthScore;
-                  if (leaderboardCategory === 'ratio') return b.strengthToWeightRatio - a.strengthToWeightRatio;
-                  return b.totalBigThree - a.totalBigThree;
-                })
-                .map((entry, idx) => {
-                  const isMe = currentUser?.id === entry.userId;
-                  const feet = entry.heightInches ? Math.floor(entry.heightInches / 12) : 5;
-                  const inches = entry.heightInches ? entry.heightInches % 12 : 10;
+            {leaderboard.length === 0 ? (
+              <div className="p-8 text-center rounded-2xl bg-stone-950/60 border border-stone-800 space-y-2">
+                <Trophy className="w-8 h-8 text-stone-500 mx-auto" />
+                <p className={`text-sm font-bold ${theme.textPrimaryClass}`}>No Leaderboard Entries Yet</p>
+                <p className={`text-xs ${theme.textSecondaryClass}`}>
+                  Sign up or log a workout to feature on the Big Three strength leaderboard!
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {[...leaderboard]
+                  .sort((a, b) => {
+                    const aVal = leaderboardCategory === 'normalized' ? (a.relativeStrengthScore || 0)
+                               : leaderboardCategory === 'ratio' ? (a.strengthToWeightRatio || 0)
+                               : (a.totalBigThree || 0);
+                    const bVal = leaderboardCategory === 'normalized' ? (b.relativeStrengthScore || 0)
+                               : leaderboardCategory === 'ratio' ? (b.strengthToWeightRatio || 0)
+                               : (b.totalBigThree || 0);
+                    return bVal - aVal;
+                  })
+                  .map((entry, idx) => {
+                    const isMe = currentUser?.id === entry.userId;
+                    const feet = entry.heightInches ? Math.floor(entry.heightInches / 12) : 5;
+                    const inches = entry.heightInches ? entry.heightInches % 12 : 10;
 
-                  return (
-                    <div
-                      key={entry.userId}
-                      className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
-                        isMe
-                          ? `${theme.badgeBgClass} ${theme.accentBorderClass}`
-                          : 'bg-stone-950/60 border-stone-800'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${
-                          idx === 0 ? 'bg-amber-400 text-zinc-950' : idx === 1 ? 'bg-stone-300 text-zinc-950' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-stone-800 text-stone-400'
-                        }`}>
-                          #{idx + 1}
-                        </span>
-                        <img src={entry.userAvatar} alt={entry.userName} className="w-10 h-10 rounded-full object-cover border border-stone-700 shrink-0" />
-                        <div>
-                          <p className={`text-sm font-bold ${theme.textPrimaryClass} flex items-center gap-1.5`}>
-                            <span>{entry.userName}</span>
-                            {isMe && <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 font-extrabold">(You)</span>}
-                          </p>
-                          <p className={`text-xs ${theme.textSecondaryClass} font-mono mt-0.5`}>
-                            Bench: {entry.benchPressMax} &bull; Squat: {entry.squatMax} &bull; DL: {entry.deadliftMax}
-                          </p>
-                          <div className="flex flex-wrap gap-2 text-[10px] text-stone-400 mt-1">
-                            <span>Height: {feet}'{inches}"</span>
-                            <span>&bull;</span>
-                            <span>Age: {entry.age || 25}</span>
-                            <span>&bull;</span>
-                            <span>BW: {entry.bodyweightLbs || 180} lbs</span>
+                    return (
+                      <div
+                        key={entry.userId}
+                        className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
+                          isMe
+                            ? `${theme.badgeBgClass} ${theme.accentBorderClass}`
+                            : 'bg-stone-950/60 border-stone-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${
+                            idx === 0 ? 'bg-amber-400 text-zinc-950' : idx === 1 ? 'bg-stone-300 text-zinc-950' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-stone-800 text-stone-400'
+                          }`}>
+                            #{idx + 1}
+                          </span>
+                          <img src={entry.userAvatar} alt={entry.userName} className="w-10 h-10 rounded-full object-cover border border-stone-700 shrink-0" />
+                          <div>
+                            <p className={`text-sm font-bold ${theme.textPrimaryClass} flex items-center gap-1.5`}>
+                              <span>{entry.userName}</span>
+                              {isMe && <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 font-extrabold">(You)</span>}
+                            </p>
+                            <p className={`text-xs ${theme.textSecondaryClass} font-mono mt-0.5`}>
+                              Bench: {entry.benchPressMax || 0} &bull; Squat: {entry.squatMax || 0} &bull; DL: {entry.deadliftMax || 0}
+                            </p>
+                            <div className="flex flex-wrap gap-2 text-[10px] text-stone-400 mt-1">
+                              <span>Height: {feet}'{inches}"</span>
+                              <span>&bull;</span>
+                              <span>Age: {entry.age || 25}</span>
+                              <span>&bull;</span>
+                              <span>BW: {entry.bodyweightLbs || 180} lbs</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="text-right sm:text-right flex sm:flex-col justify-between items-end border-t sm:border-0 border-stone-800/80 pt-2 sm:pt-0">
-                        {leaderboardCategory === 'normalized' ? (
-                          <>
-                            <p className={`text-xl font-black font-mono ${theme.accentClass}`}>
-                              {entry.relativeStrengthScore.toFixed(1)} <span className="text-xs font-normal">pts</span>
-                            </p>
-                            <p className={`text-[10px] ${theme.textSecondaryClass}`}>Height-Age-BW Ratio Index</p>
-                          </>
-                        ) : leaderboardCategory === 'ratio' ? (
-                          <>
-                            <p className={`text-xl font-black font-mono ${theme.accentClass}`}>
-                              {entry.strengthToWeightRatio.toFixed(2)}x <span className="text-xs font-normal">BW</span>
-                            </p>
-                            <p className={`text-[10px] ${theme.textSecondaryClass}`}>Strength-to-Weight Ratio</p>
-                          </>
-                        ) : (
-                          <>
-                            <p className={`text-xl font-black font-mono ${theme.accentClass}`}>
-                              {formatWeight(entry.totalBigThree)}
-                            </p>
-                            <p className={`text-[10px] ${theme.textSecondaryClass}`}>Big 3 Total Lbs</p>
-                          </>
-                        )}
+                        <div className="text-right sm:text-right flex sm:flex-col justify-between items-end border-t sm:border-0 border-stone-800/80 pt-2 sm:pt-0">
+                          {leaderboardCategory === 'normalized' ? (
+                            <>
+                              <p className={`text-xl font-black font-mono ${theme.accentClass}`}>
+                                {(entry.relativeStrengthScore || 0).toFixed(1)} <span className="text-xs font-normal">pts</span>
+                              </p>
+                              <p className={`text-[10px] ${theme.textSecondaryClass}`}>Height-Age-BW Ratio Index</p>
+                            </>
+                          ) : leaderboardCategory === 'ratio' ? (
+                            <>
+                              <p className={`text-xl font-black font-mono ${theme.accentClass}`}>
+                                {(entry.strengthToWeightRatio || 0).toFixed(2)}x <span className="text-xs font-normal">BW</span>
+                              </p>
+                              <p className={`text-[10px] ${theme.textSecondaryClass}`}>Strength-to-Weight Ratio</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className={`text-xl font-black font-mono ${theme.accentClass}`}>
+                                {formatWeight(entry.totalBigThree || 0)}
+                              </p>
+                              <p className={`text-[10px] ${theme.textSecondaryClass}`}>Big 3 Total Lbs</p>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-            </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         </div>
       )}

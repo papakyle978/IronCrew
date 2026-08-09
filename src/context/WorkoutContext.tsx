@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { WorkoutExercise, Exercise, Routine, RestTimerConfig, FriendFeedPost, LeaderboardEntry } from '../types';
+import { WorkoutExercise, Exercise, Routine, RestTimerConfig, FriendFeedPost, LeaderboardEntry, MuscleGroup } from '../types';
 import { INITIAL_EXERCISES, INITIAL_ROUTINES } from '../data/initialData';
 import { useAuth } from './AuthContext';
 
@@ -11,6 +11,14 @@ interface WorkoutContextType {
   exercises: Exercise[];
   plateCalcTargetWeight: number | null;
   restTimer: RestTimerConfig;
+  prCelebration: {
+    exerciseName: string;
+    weightLbs: number;
+    reps: number;
+    estimated1RM: number;
+  } | null;
+  dismissPRCelebration: () => void;
+  addCustomExercise: (name: string, muscleGroup: MuscleGroup, equipment: any, instructions?: string) => void;
   startWorkout: (t: string, rId?: string) => void;
   addExerciseToActiveWorkout: (ex: Exercise) => void;
   removeExerciseFromActiveWorkout: (id: string) => void;
@@ -43,9 +51,35 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [plateCalcTargetWeight, setPlateCalcTargetWeight] = useState<number | null>(null);
   const [exercises, setExercises] = useState<Exercise[]>(INITIAL_EXERCISES);
   const [friendFeed, setFriendFeed] = useState<FriendFeedPost[]>([]);
-  const [restTimer, setRestTimer] = useState<RestTimerConfig>({ isActive: false, isPaused: false, secondsLeft: 0, totalSeconds: 0, exerciseName: '' });
-  
+  const [prCelebration, setPrCelebration] = useState<{
+    exerciseName: string;
+    weightLbs: number;
+    reps: number;
+    estimated1RM: number;
+  } | null>(null);
+  const [restTimer, setRestTimer] = useState<RestTimerConfig>({
+    isActive: false,
+    isPaused: false,
+    secondsLeft: 0,
+    totalSeconds: 0,
+    exerciseName: ''
+  });
+
   const uid = currentUser?.id || 'guest';
+
+  // Tick down rest timer when active
+  useEffect(() => {
+    if (!restTimer.isActive || restTimer.isPaused || restTimer.secondsLeft <= 0) return;
+    const interval = setInterval(() => {
+      setRestTimer(prev => {
+        if (prev.secondsLeft <= 1) {
+          return { ...prev, secondsLeft: 0, isActive: false };
+        }
+        return { ...prev, secondsLeft: prev.secondsLeft - 1 };
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [restTimer.isActive, restTimer.isPaused, restTimer.secondsLeft]);
 
   useEffect(() => {
     if (!uid || uid === 'guest') return;
@@ -56,6 +90,17 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (Array.isArray(d) && d.length) setRoutines([...INITIAL_ROUTINES, ...d]);
     }).catch(() => {});
   }, [uid]);
+
+  const addCustomExercise = (name: string, muscleGroup: MuscleGroup, equipment: any, instructions?: string) => {
+    const newEx: Exercise = {
+      id: `ex-custom-${Date.now()}`,
+      name,
+      muscleGroup,
+      equipment: equipment || 'Barbell',
+      instructions: instructions || 'Custom user created movement.',
+    };
+    setExercises(prev => [...prev, newEx]);
+  };
 
   const syncStats = (exs: WorkoutExercise[]) => {
     let sets = 0;
@@ -85,7 +130,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       id: `we-${Date.now()}-${i}`, exerciseId: rx.exerciseId, exerciseName: rx.exerciseName, muscleGroup: rx.muscleGroup,
       sets: Array.from({ length: rx.targetSets || 3 }).map((_, s) => ({ id: `s-${Date.now()}-${i}-${s}`, reps: parseInt(rx.targetReps) || 10, weight: 135, completed: false, setType: 'normal' }))
     })) : [];
-    
+
     setActiveWorkout({
       id: `w-${Date.now()}`,
       userId: uid,
@@ -116,22 +161,21 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const now = Date.now();
     let d = activeWorkout.accumulatedTimeSeconds || 0;
     if (!activeWorkout.isPaused) d += Math.floor((now - (activeWorkout.lastTickTime || now)) / 1000);
-    
+
     const finalStats = syncStats(activeWorkout.exercises);
-    const finalW = { 
-      ...activeWorkout, 
-      dataType: 'workout', 
-      isFinished: true, 
-      endTime: new Date().toISOString(), 
+    const finalW = {
+      ...activeWorkout,
+      dataType: 'workout',
+      isFinished: true,
+      endTime: new Date().toISOString(),
       durationSeconds: d || 1,
       ...finalStats
     };
 
-    // Calculate personal records updates
-    let updatedBench = currentUser.stats.benchPressMaxLbs || 0;
-    let updatedSquat = currentUser.stats.squatMaxLbs || 0;
-    let updatedDeadlift = currentUser.stats.deadliftMaxLbs || 0;
-    let updatedOhp = currentUser.stats.ohpMaxLbs || 0;
+    let updatedBench = currentUser.stats?.benchPressMaxLbs || 0;
+    let updatedSquat = currentUser.stats?.squatMaxLbs || 0;
+    let updatedDeadlift = currentUser.stats?.deadliftMaxLbs || 0;
+    let updatedOhp = currentUser.stats?.ohpMaxLbs || 0;
     const highlightsList: string[] = [];
 
     activeWorkout.exercises.forEach((ex: any) => {
@@ -157,12 +201,16 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
     });
 
-    // Update active profile metrics automatically
+    const currentStats = currentUser.stats || {
+      totalWorkouts: 0, totalVolumeLbs: 0, streakDays: 1,
+      benchPressMaxLbs: 0, squatMaxLbs: 0, deadliftMaxLbs: 0, ohpMaxLbs: 0
+    };
+
     updateProfile({
       stats: {
-        ...currentUser.stats,
-        totalWorkouts: (currentUser.stats.totalWorkouts || 0) + 1,
-        totalVolumeLbs: (currentUser.stats.totalVolumeLbs || 0) + finalStats.totalVolumeLbs,
+        ...currentStats,
+        totalWorkouts: (currentStats.totalWorkouts || 0) + 1,
+        totalVolumeLbs: (currentStats.totalVolumeLbs || 0) + finalStats.totalVolumeLbs,
         benchPressMaxLbs: updatedBench,
         squatMaxLbs: updatedSquat,
         deadliftMaxLbs: updatedDeadlift,
@@ -170,12 +218,11 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     });
 
-    // Dynamically post results onto the feed lifecycle state
     const feedPost: FriendFeedPost = {
       id: `f-${Date.now()}`,
       userId: currentUser.id,
       userName: currentUser.displayName,
-      userAvatar: currentUser.avatarUrl || 'https://dicebear.com',
+      userAvatar: currentUser.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg?seed=iron',
       workoutTitle: finalW.title,
       durationMinutes: Math.max(1, Math.round((finalW.durationSeconds || 1) / 60)),
       totalVolumeLbs: finalStats.totalVolumeLbs,
@@ -209,11 +256,16 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const s = u.stats?.squatMaxLbs || 0;
       const d = u.stats?.deadliftMaxLbs || 0;
       const t = b + s + d;
-      const bw = u.bodyweightLbs || 150;
+      const bw = u.bodyweightLbs || 180;
+      const heightInches = u.heightInches || 68;
+      const age = u.age || 25;
+      const ratio = bw > 0 ? t / bw : 0;
+      const relativeStrengthScore = (heightInches > 0 && bw > 0) ? ((t * (age > 30 ? 1.05 : 1.0)) / (heightInches / 70)) : 0;
+
       return {
         userId: u.id,
         userName: u.displayName,
-        userAvatar: u.avatarUrl || 'https://dicebear.com',
+        userAvatar: u.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg?seed=iron',
         benchPressMax: b,
         squatMax: s,
         deadliftMax: d,
@@ -221,19 +273,80 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         totalBigThree: t,
         monthlyVolume: u.stats?.totalVolumeLbs || 0,
         monthlyWorkouts: u.stats?.totalWorkouts || 0,
-        heightInches: u.heightInches || 68,
-        age: u.age || 25,
+        heightInches,
+        age,
         bodyweightLbs: bw,
-        strengthToWeightRatio: bw > 0 ? t / bw : 0,
-        relativeStrengthScore: bw > 0 ? ((t * ((u.age || 25) > 30 ? 1.05 : 1.0)) / ((u.heightInches || 68) / 70)) : 0,
+        strengthToWeightRatio: ratio,
+        relativeStrengthScore,
         rank: i + 1
       };
     });
   };
 
+  const toggleSetCompletedHandler = (weId: string, sId: string) => {
+    updateActive(prev => prev.map(e => {
+      if (e.id !== weId) return e;
+      return {
+        ...e,
+        sets: e.sets.map(s => {
+          if (s.id !== sId) return s;
+          const nextCompleted = !s.completed;
+          if (nextCompleted) {
+            // Auto-start rest timer
+            const restSecs = currentUser?.settings?.defaultRestSeconds || 90;
+            setRestTimer({
+              isActive: true,
+              isPaused: false,
+              secondsLeft: restSecs,
+              totalSeconds: restSecs,
+              exerciseName: e.exerciseName || 'Between Sets'
+            });
+
+            // Check if PR set
+            if (s.weight > 0) {
+              const currentPR = e.exerciseId === 'ex-bench-press' ? (currentUser?.stats?.benchPressMaxLbs || 0)
+                              : e.exerciseId === 'ex-barbell-squat' ? (currentUser?.stats?.squatMaxLbs || 0)
+                              : e.exerciseId === 'ex-deadlift' ? (currentUser?.stats?.deadliftMaxLbs || 0)
+                              : e.exerciseId === 'ex-overhead-press' ? (currentUser?.stats?.ohpMaxLbs || 0)
+                              : 0;
+              if (s.weight > currentPR && currentPR > 0) {
+                const e1rm = Math.round(s.weight * (1 + s.reps / 30));
+                setPrCelebration({
+                  exerciseName: e.exerciseName,
+                  weightLbs: s.weight,
+                  reps: s.reps,
+                  estimated1RM: e1rm
+                });
+              }
+            }
+          }
+          return { ...s, completed: nextCompleted };
+        })
+      };
+    }));
+  };
+
   return (
     <WorkoutContext.Provider value={{
-      pastWorkouts, routines, friendFeed, activeWorkout, exercises, plateCalcTargetWeight, restTimer, startWorkout, finishWorkout, createRoutine, getLeaderboard, toggleWorkoutTimerPause,
+      pastWorkouts, routines, friendFeed, activeWorkout, exercises, plateCalcTargetWeight, restTimer, prCelebration, startWorkout, finishWorkout, createRoutine, getLeaderboard, toggleWorkoutTimerPause,
+      addCustomExercise,
+      dismissPRCelebration: () => setPrCelebration(null),
       pauseRestTimer: () => setRestTimer(p => ({ ...p, isPaused: true })),
       resumeRestTimer: () => setRestTimer(p => ({ ...p, isPaused: false })),
-addSecondsToRestTimer: (s) => setRestTimer(p => ({ ...p, secondsLeft: p.secondsLeft + s, totalSeconds: p.totalSeconds + s })),stopRestTimer: () => setRestTimer(p => ({ ...p, isActive: false })),setPlateCalcTargetWeight,cancelWorkout: () => setActiveWorkout(null),addExerciseToActiveWorkout: (ex) => updateActive(prev => [...prev, { id: we-${Date.now()}, exerciseId: ex.id, exerciseName: ex.name, muscleGroup: ex.muscleGroup as any, sets: [] }]),removeExerciseFromActiveWorkout: (id) => updateActive(prev => prev.filter(e => e.id !== id)),addSetToExercise: (weId) => updateActive(prev => [...prev.map(e => e.id === weId ? { ...e, sets: [...e.sets, { id: s-${Date.now()}, reps: 10, weight: 135, completed: false, setType: 'normal' }] } : e)]),removeSetFromExercise: (weId, sId) => updateActive(prev => prev.map(e => e.id === weId ? { ...e, sets: e.sets.filter(s => s.id !== sId) } : e)),updateSet: (weId, sId, f) => updateActive(prev => prev.map(e => e.id === weId ? { ...e, sets: e.sets.map(s => s.id === sId ? { ...s, ...f } : s) } : e)),toggleSetCompleted: (weId, sId) => updateActive(prev => prev.map(e => e.id === weId ? { ...e, sets: e.sets.map(s => s.id === sId ? { ...s, completed: !s.completed } : s) } : e)),likeFeedPost: (pId) => setFriendFeed(p => p.map(x => x.id === pId ? { ...x, likes: x.likes.includes(uid) ? x.likes.filter(id => id !== uid) : [...x.likes, uid] } : x)),addCommentToFeedPost: (pId, txt) => setFriendFeed(p => p.map(x => x.id === pId ? { ...x, comments: [...x.comments, { id: c-${Date.now()}, userId: uid, userName: currentUser?.displayName || 'You', userAvatar: currentUser?.avatarUrl || 'dicebear.com', text: txt, createdAt: 'Just now' }] } : x))}}>{children}</WorkoutContext.Provider>);};
+      addSecondsToRestTimer: (s) => setRestTimer(p => ({ ...p, secondsLeft: p.secondsLeft + s, totalSeconds: p.totalSeconds + s })),
+      stopRestTimer: () => setRestTimer(p => ({ ...p, isActive: false })),
+      setPlateCalcTargetWeight,
+      cancelWorkout: () => setActiveWorkout(null),
+      addExerciseToActiveWorkout: (ex) => updateActive(prev => [...prev, { id: `we-${Date.now()}`, exerciseId: ex.id, exerciseName: ex.name, muscleGroup: ex.muscleGroup as any, sets: [] }]),
+      removeExerciseFromActiveWorkout: (id) => updateActive(prev => prev.filter(e => e.id !== id)),
+      addSetToExercise: (weId) => updateActive(prev => prev.map(e => e.id === weId ? { ...e, sets: [...e.sets, { id: `s-${Date.now()}`, reps: 10, weight: 135, completed: false, setType: 'normal' }] } : e)),
+      removeSetFromExercise: (weId, sId) => updateActive(prev => prev.map(e => e.id === weId ? { ...e, sets: e.sets.filter(s => s.id !== sId) } : e)),
+      updateSet: (weId, sId, f) => updateActive(prev => prev.map(e => e.id === weId ? { ...e, sets: e.sets.map(s => s.id === sId ? { ...s, ...f } : s) } : e)),
+      toggleSetCompleted: toggleSetCompletedHandler,
+      likeFeedPost: (pId) => setFriendFeed(p => p.map(x => x.id === pId ? { ...x, likes: x.likes.includes(uid) ? x.likes.filter(id => id !== uid) : [...x.likes, uid] } : x)),
+      addCommentToFeedPost: (pId, txt) => setFriendFeed(p => p.map(x => x.id === pId ? { ...x, comments: [...x.comments, { id: `c-${Date.now()}`, userId: uid, userName: currentUser?.displayName || 'You', userAvatar: currentUser?.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg?seed=iron', text: txt, createdAt: 'Just now' }] } : x))
+    }}>
+      {children}
+    </WorkoutContext.Provider>
+  );
+};

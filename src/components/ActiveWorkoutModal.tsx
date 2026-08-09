@@ -184,4 +184,25 @@ export const ActiveWorkoutModal: React.FC = () => {
               />
             </div>
             <div className="max-h-60 overflow-y-auto space-y-1">
-{exercises.filter(ex => ex.name.toLowerCase().includes(exerciseSearch.toLowerCase())).map(ex => (<buttonkey={ex.id}type="button"onClick={() => { addExerciseToActiveWorkout(ex); setShowAddExerciseModal(false); }}className="w-full p-2.5 text-left text-xs bg-stone-900/50 hover:bg-stone-800 rounded-xl block text-stone-200">{ex.name} ({ex.muscleGroup})))})});};
+              {exercises
+                .filter(ex => ex.name.toLowerCase().includes(exerciseSearch.toLowerCase()))
+                .map(ex => (
+                  <button
+                    key={ex.id}
+                    type="button"
+                    onClick={() => {
+                      addExerciseToActiveWorkout(ex);
+                      setShowAddExerciseModal(false);
+                    }}
+                    className="w-full p-2.5 text-left text-xs bg-stone-900/50 hover:bg-stone-800 rounded-xl block text-stone-200"
+                  >
+                    {ex.name} ({ex.muscleGroup})
+                  </button>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

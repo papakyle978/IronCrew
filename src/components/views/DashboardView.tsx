@@ -26,10 +26,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateTab }) =
   const { startWorkout, routines, pastWorkouts, friendFeed, likeFeedPost } = useWorkout();
   const { theme, formatWeight } = useTheme();
 
-  const bench = currentUser?.stats.benchPressMaxLbs || 0;
-  const squat = currentUser?.stats.squatMaxLbs || 0;
-  const deadlift = currentUser?.stats.deadliftMaxLbs || 0;
-  const ohp = currentUser?.stats.ohpMaxLbs || 0;
+  const bench = currentUser?.stats?.benchPressMaxLbs || 0;
+  const squat = currentUser?.stats?.squatMaxLbs || 0;
+  const deadlift = currentUser?.stats?.deadliftMaxLbs || 0;
+  const ohp = currentUser?.stats?.ohpMaxLbs || 0;
   const bigThreeTotal = bench + squat + deadlift;
 
   return (
