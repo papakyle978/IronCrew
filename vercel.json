@@ -6,8 +6,12 @@
       "destination": "/api/index.ts"
     },
     {
+      "source": "/assets/(.*)",
+      "destination": "/dist/assets/$1"
+    },
+    {
       "source": "/(.*)",
-      "destination": "/$1"
+      "destination": "/dist/index.html"
     }
   ]
 }
