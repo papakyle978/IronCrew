@@ -210,6 +210,31 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
+  // Replace your old updateProfile function with this exact block:
+  const updateProfile = (updatedFields: Partial<UserProfile>) => {
+   if (!currentUser) return;
+    const updated = { ...currentUser, ...updatedFields };
+  
+  // Instantly mirror updates locally to make user interface transitions seamless
+    setUsersList(prev =>
+     prev.map(u => (u.id === currentUser.id ? updated : u))
+   );
+
+  // Securely pass modifications to the cloud cluster using the correct method types
+   try {
+      fetch(`/api/users/${currentUser.id}`, {
+        method: 'PUT',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify(updated),
+      })
+      .then(res => {
+       if (res.ok) console.log("🎉 Profile safely synchronized with MongoDB Atlas!");
+     })
+     .catch((err) => console.warn("Failed background database sync, keeping local cache.", err));
+   } catch (e) {}
+  };
+
+
   const toggleSetCompleted = (weId: string, setId: string) => {
     if (!activeWorkout) return;
     setActiveWorkout({
