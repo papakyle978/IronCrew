@@ -59,7 +59,6 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [friendFeed, setFriendFeed] = useState<any[]>([]);
 
-  // Simple local variable trick to track user without breaking the build
   const currentUserString = localStorage.getItem('ironcrew_user');
   const currentUser = currentUserString ? JSON.parse(currentUserString) : null;
   const activeUserId = currentUser?.id || '';
