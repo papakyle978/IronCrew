@@ -69,42 +69,43 @@ export const INITIAL_EXERCISES: Exercise[] = [
     name: 'Barbell Bench Press',
     muscleGroup: 'Chest',
     equipment: 'Barbell',
-    instructions: 'Lie flat on bench, retract scapula, lower bar to mid-sternum, drive up explosively.',
+    instructions: 'Lie flat on bench, retract scapulae, lower bar to mid-sternum, drive straight up.',
   },
   {
     id: 'ex-barbell-squat',
     name: 'Barbell Back Squat',
     muscleGroup: 'Legs',
     equipment: 'Barbell',
-    instructions: 'Place bar across upper traps, push hips back, descend below parallel, drive up through mid-foot.',
+    instructions: 'Place bar across your rear traps, push hips backward, break parallel cleanly, drive back up.',
   },
   {
     id: 'ex-deadlift',
     name: 'Conventional Deadlift',
     muscleGroup: 'Back',
     equipment: 'Barbell',
-    instructions: 'Stand hip-width apart, pull slack out of bar, extend hips and knees together.',
+    instructions: 'Set feet hip-width, engage your lats, pull slack completely out of bar, stand upright fully locked out.',
   },
   {
     id: 'ex-overhead-press',
     name: 'Barbell Overhead Press',
     muscleGroup: 'Shoulders',
     equipment: 'Barbell',
-    instructions: 'Strict press from collarbone height, brace core and glutes, press bar overhead.',
+    instructions: 'Strict press bar vertical overhead from your upper collarbone while bracing your core and glutes.',
   }
 ];
 
 export const INITIAL_ROUTINES: Routine[] = [
   {
-    id: 'routine-push-power',
-    title: 'Push Heavy Power',
-    description: 'Heavy chest, shoulder, and tricep focus build around Barbell Bench & OHP.',
-    muscleGroups: ['Chest', 'Shoulders', 'Arms'],
+    id: 'routine-big-three',
+    title: 'IronCrew Power Hypertrophy',
+    description: 'Core tactical development routine focused around Bench Press, Back Squats, and Deadlifts.',
+    muscleGroups: ['Chest', 'Legs', 'Back'],
     isPreset: true,
-    createdBy: 'IronCrew',
+    createdBy: 'IronCrew System',
     exercises: [
-      { exerciseId: 'ex-bench-press', exerciseName: 'Barbell Bench Press', muscleGroup: 'Chest', targetSets: 4, targetReps: '5' },
-      { exerciseId: 'ex-overhead-press', exerciseName: 'Barbell Overhead Press', muscleGroup: 'Shoulders', targetSets: 3, targetReps: '6-8' },
+      { exerciseId: 'ex-bench-press', exerciseName: 'Barbell Bench Press', muscleGroup: 'Chest', targetSets: 3, targetReps: '5-8' },
+      { exerciseId: 'ex-barbell-squat', exerciseName: 'Barbell Back Squat', muscleGroup: 'Legs', targetSets: 3, targetReps: '5' },
+      { exerciseId: 'ex-deadlift', exerciseName: 'Conventional Deadlift', muscleGroup: 'Back', targetSets: 3, targetReps: '5' }
     ],
   }
 ];

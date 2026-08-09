@@ -47,6 +47,7 @@ export const ActiveWorkoutModal: React.FC = () => {
   const mins = Math.floor((elapsedSeconds % 3600) / 60);
   const secs = elapsedSeconds % 60;
   const timeFormatted = `${hours > 0 ? `${hours}:` : ''}${mins < 10 && hours > 0 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  const categories = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
 
   return (
     <div className="fixed inset-0 z-50 bg-stone-950 flex flex-col overflow-hidden animate-fade-in">
@@ -62,10 +63,11 @@ export const ActiveWorkoutModal: React.FC = () => {
             <div className="flex items-center gap-2 text-xs font-mono">
               <span className={theme.accentClass}>{timeFormatted}</span>
               <button 
+                type="button"
                 onClick={toggleWorkoutTimerPause}
-                className="ml-1 px-1.5 py-0.5 rounded bg-stone-800 text-stone-300 text-[10px] hover:bg-stone-700"
+                className="ml-1 px-2 py-0.5 rounded-lg bg-stone-800 text-stone-300 text-[10px] font-bold hover:bg-stone-700 transition-colors"
               >
-                {activeWorkout.isPaused ? 'Resume' : 'Pause'}
+                {activeWorkout.isPaused ? '▶️ Resume' : '⏸ Pause'}
               </button>
               <span className={theme.textSecondaryClass}>&bull;</span>
               <span className={theme.textSecondaryClass}>{activeWorkout.totalCompletedSets || 0} sets logged</span>
@@ -75,10 +77,10 @@ export const ActiveWorkoutModal: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={cancelWorkout} className="px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-500/10 border border-rose-500/20">
+          <button type="button" onClick={cancelWorkout} className="px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-500/10 border border-rose-500/20">
             Cancel
           </button>
-          <button onClick={finishWorkout} className={`px-4 py-2 rounded-xl text-xs font-extrabold ${theme.buttonPrimaryClass}`}>
+          <button type="button" onClick={finishWorkout} className={`px-4 py-2 rounded-xl text-xs font-extrabold ${theme.buttonPrimaryClass}`}>
             Finish Workout
           </button>
         </div>
@@ -91,7 +93,7 @@ export const ActiveWorkoutModal: React.FC = () => {
               <Dumbbell className="w-8 h-8" />
             </div>
             <h3 className={`text-lg font-bold ${theme.textPrimaryClass}`}>No exercises added yet</h3>
-            <button onClick={() => setShowAddExerciseModal(true)} className={`px-5 py-3 rounded-2xl font-bold text-sm ${theme.buttonPrimaryClass}`}>
+            <button type="button" onClick={() => setShowAddExerciseModal(true)} className={`px-5 py-3 rounded-2xl font-bold text-sm ${theme.buttonPrimaryClass}`}>
               Add Exercise
             </button>
           </div>
@@ -103,7 +105,7 @@ export const ActiveWorkoutModal: React.FC = () => {
                   <span className="w-7 h-7 rounded-full bg-stone-800 text-xs font-bold flex items-center justify-center">{exIdx + 1}</span>
                   <h3 className={`text-base font-bold ${theme.textPrimaryClass}`}>{we.exerciseName}</h3>
                 </div>
-                <button onClick={() => removeExerciseFromActiveWorkout(we.id)} className="text-stone-500 hover:text-rose-400">
+                <button type="button" onClick={() => removeExerciseFromActiveWorkout(we.id)} className="text-stone-500 hover:text-rose-400">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -116,7 +118,7 @@ export const ActiveWorkoutModal: React.FC = () => {
                       <select
                         value={set.setType}
                         onChange={e => updateSet(we.id, set.id, { setType: e.target.value as SetType })}
-                        className="bg-stone-900 text-xs text-stone-300 rounded px-1 py-1"
+                        className="bg-stone-900 text-xs text-stone-300 rounded px-1 py-1 focus:outline-none"
                       >
                         <option value="normal">Normal</option>
                         <option value="warmup">Warmup</option>
@@ -142,8 +144,9 @@ export const ActiveWorkoutModal: React.FC = () => {
                     </div>
                     <div className="col-span-2 flex justify-center">
                       <button
+                        type="button"
                         onClick={() => toggleSetCompleted(we.id, set.id)}
-                        className={`w-7 h-7 rounded flex items-center justify-center ${set.completed ? 'bg-emerald-500 text-black' : 'bg-stone-800'}`}
+                        className={`w-7 h-7 rounded flex items-center justify-center transition-all ${set.completed ? 'bg-emerald-500 text-black shadow-md' : 'bg-stone-800 text-stone-400'}`}
                       >
                         <Check className="w-4 h-4" />
                       </button>
@@ -151,14 +154,14 @@ export const ActiveWorkoutModal: React.FC = () => {
                   </div>
                 ))}
               </div>
-              <button onClick={() => addSetToExercise(we.id)} className={`px-3 py-1.5 rounded-xl text-xs font-bold ${theme.buttonSecondaryClass}`}>
+              <button type="button" onClick={() => addSetToExercise(we.id)} className={`px-3 py-1.5 rounded-xl text-xs font-bold ${theme.buttonSecondaryClass}`}>
                 + Add Set
               </button>
             </div>
           ))
         )}
         <div className="text-center pt-4">
-          <button onClick={() => setShowAddExerciseModal(true)} className={`px-6 py-3 rounded-2xl font-bold text-sm ${theme.buttonPrimaryClass}`}>
+          <button type="button" onClick={() => setShowAddExerciseModal(true)} className={`px-6 py-3 rounded-2xl font-bold text-sm ${theme.buttonPrimaryClass}`}>
             + Add Exercise
           </button>
         </div>
@@ -169,7 +172,7 @@ export const ActiveWorkoutModal: React.FC = () => {
           <div className={`w-full max-w-lg ${theme.cardBgClass} p-6 rounded-3xl`}>
             <div className="flex justify-between items-center border-b border-stone-800 pb-3">
               <h3 className="text-sm font-bold">Select Exercise</h3>
-              <button onClick={() => setShowAddExerciseModal(false)}><X className="w-5 h-5" /></button>
+              <button type="button" onClick={() => setShowAddExerciseModal(false)}><X className="w-5 h-5" /></button>
             </div>
             <div className="my-4">
               <input
@@ -177,23 +180,8 @@ export const ActiveWorkoutModal: React.FC = () => {
                 placeholder="Search..."
                 value={exerciseSearch}
                 onChange={e => setExerciseSearch(e.target.value)}
-                className="w-full p-2 rounded bg-stone-950 border border-stone-800 text-xs"
+                className="w-full p-2 rounded bg-stone-950 border border-stone-800 text-xs text-white"
               />
             </div>
             <div className="max-h-60 overflow-y-auto space-y-1">
-              {exercises.filter(ex => ex.name.toLowerCase().includes(exerciseSearch.toLowerCase())).map(ex => (
-                <button
-                  key={ex.id}
-                  onClick={() => { addExerciseToActiveWorkout(ex); setShowAddExerciseModal(false); }}
-                  className="w-full p-2.5 text-left text-xs bg-stone-900/50 hover:bg-stone-800 rounded-xl block"
-                >
-                  {ex.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+{exercises.filter(ex => ex.name.toLowerCase().includes(exerciseSearch.toLowerCase())).map(ex => (<buttonkey={ex.id}type="button"onClick={() => { addExerciseToActiveWorkout(ex); setShowAddExerciseModal(false); }}className="w-full p-2.5 text-left text-xs bg-stone-900/50 hover:bg-stone-800 rounded-xl block text-stone-200">{ex.name} ({ex.muscleGroup})))})});};
