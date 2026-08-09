@@ -53,6 +53,14 @@ export interface Routine {
   dataType?: string;
 }
 
+export interface RestTimerConfig {
+  isActive: boolean;
+  isPaused: boolean;
+  secondsLeft: number;
+  totalSeconds: number;
+  exerciseName: string;
+}
+
 interface WorkoutContextType {
   pastWorkouts: Workout[];
   routines: Routine[];
@@ -60,6 +68,7 @@ interface WorkoutContextType {
   activeWorkout: any | null;
   exercises: Exercise[];
   plateCalcTargetWeight: number | null;
+  restTimer: RestTimerConfig;
   startWorkout: (title: string, routineId?: string) => void;
   addExerciseToActiveWorkout: (exercise: Exercise) => void;
   removeExerciseFromActiveWorkout: (id: string) => void;
@@ -72,6 +81,10 @@ interface WorkoutContextType {
   cancelWorkout: () => void;
   createRoutine: (title: string, desc: string, exercises: any[]) => Promise<void>;
   getLeaderboard: () => any[];
+  pauseRestTimer: () => void;
+  resumeRestTimer: () => void;
+  addSecondsToRestTimer: (secs: number) => void;
+  stopRestTimer: () => void;
 }
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
@@ -88,8 +101,16 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [friendFeed, setFriendFeed] = useState<any[]>([]);
   const [activeWorkout, setActiveWorkout] = useState<any | null>(null);
   const [plateCalcTargetWeight, setPlateCalcTargetWeight] = useState<number | null>(null);
+  
+  // FIXED: Added initialization structure to support RestTimerFloating component rendering safely
+  const [restTimer, setRestTimer] = useState<RestTimerConfig>({
+    isActive: false,
+    isPaused: false,
+    secondsLeft: 0,
+    totalSeconds: 0,
+    exerciseName: ''
+  });
 
-  // Default fallbacks from initialData simulation
   const [exercises] = useState<Exercise[]>([
     { id: 'ex-bench-press', name: 'Barbell Bench Press', muscleGroup: 'Chest', equipment: 'Barbell' },
     { id: 'ex-barbell-squat', name: 'Barbell Back Squat', muscleGroup: 'Legs', equipment: 'Barbell' },
@@ -107,11 +128,17 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .then(data => { if (Array.isArray(data)) setPastWorkouts(data); })
       .catch(() => {});
 
-    fetch('/api/routines?userId=${activeUserId}')
+    fetch(`/api/routines?userId=${activeUserId}`)
       .then(res => res.ok ? res.json() : [])
       .then(data => { if (Array.isArray(data)) setRoutines(data); })
       .catch(() => {});
   }, [activeUserId]);
+
+  // Rest Timer Control Stubs
+  const pauseRestTimer = () => setRestTimer(prev => ({ ...prev, isPaused: true }));
+  const resumeRestTimer = () => setRestTimer(prev => ({ ...prev, isPaused: false }));
+  const addSecondsToRestTimer = (secs: number) => setRestTimer(prev => ({ ...prev, secondsLeft: prev.secondsLeft + secs, totalSeconds: prev.totalSeconds + secs }));
+  const stopRestTimer = () => setRestTimer(prev => ({ ...prev, isActive: false }));
 
   const startWorkout = (title: string, routineId?: string) => {
     setActiveWorkout({
@@ -257,10 +284,11 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   return (
     <WorkoutContext.Provider value={{
-      pastWorkouts, routines, friendFeed, activeWorkout, exercises, plateCalcTargetWeight,
+      pastWorkouts, routines, friendFeed, activeWorkout, exercises, plateCalcTargetWeight, restTimer,
       startWorkout, addExerciseToActiveWorkout, removeExerciseFromActiveWorkout,
       addSetToExercise, removeSetFromExercise, updateSet, toggleSetCompleted,
-      setPlateCalcTargetWeight, finishWorkout, cancelWorkout, createRoutine, getLeaderboard
+      setPlateCalcTargetWeight, finishWorkout, cancelWorkout, createRoutine, getLeaderboard,
+      pauseRestTimer, resumeRestTimer, addSecondsToRestTimer, stopRestTimer
     }}>
       {children}
     </WorkoutContext.Provider>
