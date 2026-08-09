@@ -59,8 +59,11 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [friendFeed, setFriendFeed] = useState<any[]>([]);
 
-  const currentUserString = localStorage.getItem('ironcrew_user');
-  const currentUser = currentUserString ? JSON.parse(currentUserString) : null;
+  // Synchronized with AuthContext to fix the background crash loop
+  const currentUserId = localStorage.getItem('ironcrew_current_user_id') || '';
+  const allUsersString = localStorage.getItem('ironcrew_users') || '[]';
+  const allUsers = JSON.parse(allUsersString);
+  const currentUser = Array.isArray(allUsers) ? allUsers.find((u: any) => u.id === currentUserId) : null;
   const activeUserId = currentUser?.id || '';
 
   useEffect(() => {
