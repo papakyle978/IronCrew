@@ -158,6 +158,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Initial server sync when user logs in or changes
     // NEW, CLEAN CODE FOR YOU TO COPY AND PASTE:
+    // Synchronize backend data on login or updates
   useEffect(() => {
     if (!currentUser || !currentUser.id) return;
 
@@ -195,7 +196,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       })
       .catch(() => {});
-  }, [currentUser.id]); //  FIXED! Notice the question mark is gone.
+  }, [currentUser.id]);
 
 
 
