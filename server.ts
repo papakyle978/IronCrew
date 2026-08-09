@@ -2,8 +2,18 @@ import express from 'express';
 import path from 'path';
 import { MongoClient, Db } from 'mongodb';
 
+// CRITICAL: Global catchers to stop Vercel from crashing blindly with a 500 error
+process.on('uncaughtException', (err) => {
+  console.error('💥 UNCAUGHT EXCEPTION ERROR DETECTED:', err.stack || err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 UNHANDLED REJECTION AT PROMISE:', promise, 'REASON:', reason);
+});
+
 const app = express();
 app.use(express.json());
+// ... Leave the rest of your server.ts exactly as it is
 
 // MongoDB connection setup with cached connection promise
 interface MongoCache {
